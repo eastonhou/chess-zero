@@ -60,7 +60,7 @@ class Model(nn.Module):
             result.append((p,v))
         return result
 
-    def update_policy(self, optimizer, train_data, epochs=5):
+    def update_policy(self, optimizer, train_data, epochs=10):
         records, targets = zip(*train_data)
         inputs = self.convert_records(records)
         targets = self.convert_targets(targets, [x[1] for x in records])
@@ -74,6 +74,7 @@ class Model(nn.Module):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+        print(f'LOSS: {loss.div(inputs.shape[0]).item()}')
 
     def create_optimizer(self):
         return torch.optim.AdamW(self.parameters())
