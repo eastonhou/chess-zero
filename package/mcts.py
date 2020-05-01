@@ -91,7 +91,7 @@ def play(model, state):
     else:
         moves = rules.next_steps(node.board, node.side == 1)
         action_logit, value = model.forward_one(node.board, node.side)
-        action_probs = action_logit.softmax(dim=-1).detach().cpu().numpy()
+        action_probs = action_logit.exp().detach().cpu().numpy()
         value = value.item()
         node.expand(moves, action_probs)
     node.backup(value)

@@ -20,6 +20,26 @@ class Model(nn.Module):
         return p[0], v[0]
 
     def forward_some(self, batch_board_side):
+        inputs = self.convert_records(batch_board_side)
+        p, v = self.forward(inputs)
+        for i,(_,side) in enumerate(batch_board_side):
+            if side == -1:
+                p[i] = p[i,MoveTransform.rotate_indices()]
+                v = -v
+        return p, v
+
+    def forward(self, inputs):
+        x = self.embeddings(inputs).permute(0, 3, 1, 2).contiguous()
+        x = self.input_layer(x)
+        for m in self.residual_blocks:
+            a = m(x)
+            x = nn.functional.relu(a + x)
+        p = self._run_head(self.policy_head, self.policy_projection, x)
+        v = self._run_head(self.value_head, self.value_projection, x)
+        v = v.view(-1)
+        return p, v
+
+    def convert_records(self, records):
         def _convert_record(board, side):
             if side == -1:
                 board = rotate_board(board)
@@ -27,26 +47,40 @@ class Model(nn.Module):
             board = [pieces.index(x) for x in board]
             input = np.array(board, dtype=np.int64).reshape((10,9))
             return input
-
-        records = [_convert_record(*x) for x in batch_board_side]
+        records = [_convert_record(*x) for x in records]
         inputs = self.tensor(np.array(records))
-        p, v = self.forward(inputs)
-        for i,(_,side) in enumerate(batch_board_side):
-            if side == -1:
-                p[i] = p[i,MoveTransform.rotate_indices()]
-        return p, v
+        return inputs
 
-    def forward(self, inputs):
-        x = self.embeddings(inputs).permute(0, 3, 1, 2)
-        x = self.input_layer(x)
-        for m in self.residual_blocks:
-            a = m(x)
-            x = nn.functional.relu(a + x)
-        p = self._run_head(self.policy_head, self.policy_projection, x)
-        v = self._run_head(self.value_head, self.value_projection, x)
-        return p, v
+    def convert_targets(self, targets, sides):
+        result = []
+        for (p,v),s in zip(targets, sides):
+            if s == -1:
+                p = p[MoveTransform.rotate_indices()]
+                v = -v
+            result.append((p,v))
+        return result
+
+    def update_policy(self, optimizer, train_data, epochs=5):
+        records, targets = zip(*train_data)
+        inputs = self.convert_records(records)
+        targets = self.convert_targets(targets, [x[1] for x in records])
+        for _ in range(epochs):
+            p, v = self.forward(inputs)
+            tp, tv = zip(*targets)
+            tp, tv = self.tensor(tp), self.tensor(tv).float()
+            ploss = (-p*tp).sum()
+            vloss = nn.functional.mse_loss(v, tv)
+            loss = ploss + vloss
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+    def create_optimizer(self):
+        return torch.optim.AdamW(self.parameters())
 
     def tensor(self, values):
+        if not isinstance(values, np.ndarray):
+            values = np.array(values)
         return torch.tensor(values, device=self.device())
 
     def device(self):
@@ -82,7 +116,9 @@ class Model(nn.Module):
             nn.ReLU(inplace=True))
 
     def _make_policy_projection(self):
-        return nn.Linear(180, MoveTransform.action_size())
+        return nn.Sequential(
+            nn.Linear(180, MoveTransform.action_size()),
+            nn.LogSoftmax(dim=-1))
 
     def _make_value_head(self):
         return nn.Sequential(

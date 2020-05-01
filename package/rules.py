@@ -301,6 +301,13 @@ class MoveTransform:
         return action_probs
 
     @staticmethod
+    def map_probs(moves, probs):
+        result = np.zeros(__class__.action_size(), dtype=np.float32)
+        ids = [__class__.move_to_id(x) for x in moves]
+        result[ids] = probs
+        return result
+
+    @staticmethod
     def rotate_indices():
         if __class__.__rotate_indices__ is None:
             indices = np.zeros(__class__.action_size(), dtype=np.int32)
