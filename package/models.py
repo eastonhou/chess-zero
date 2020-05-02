@@ -1,9 +1,10 @@
-import torch
+import os, torch
 import torch.nn as nn
 import numpy as np
 from package.rules import MoveTransform, rotate_board
 
 class Model(nn.Module):
+    __default_checkpoint__ = 'checkpoints/model.ckpt'
     def __init__(self, num_residual_blocks, embedding_dim=80):
         super(__class__, self).__init__()
         self.embedding_dim = embedding_dim
@@ -14,6 +15,8 @@ class Model(nn.Module):
         self.value_head = self._make_value_head()
         self.value_projection = self._make_value_projection()
         self.embeddings = nn.Embedding(15, embedding_dim, padding_idx=0)
+        if os.path.isfile(__class__.__default_checkpoint__):
+            self.load_checkpoint(__class__.__default_checkpoint__)
 
     def forward_one(self, board, side):
         p, v = self.forward_some([(board, side)])
@@ -75,6 +78,20 @@ class Model(nn.Module):
             loss.backward()
             optimizer.step()
         print(f'LOSS: {loss.div(inputs.shape[0]).item()}')
+        self.save_checkpoint(__class__.__default_checkpoint__)
+
+    def save_checkpoint(self, path):
+        ckpt = {
+            'model': self.state_dict()
+        }
+        dirname = os.path.dirname(path)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
+        torch.save(ckpt, path)
+
+    def load_checkpoint(self, path):
+        ckpt = torch.load(path, map_location=lambda storage,location: storage)
+        self.load_state_dict(ckpt['model'], strict=False)
 
     def create_optimizer(self):
         return torch.optim.AdamW(self.parameters())
