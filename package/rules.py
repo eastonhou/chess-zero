@@ -12,6 +12,9 @@ def next_steps(board, red):
         steps += [(i, m) for m in moves]
     return steps
 
+def can_move(board, i0, i1):
+    moves = next_chess_steps[board[i0]](board, i0)
+    return i1 in moves
 
 def is_red(chess):
     return 'A' <= chess <= 'Z'

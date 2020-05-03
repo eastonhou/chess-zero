@@ -40,7 +40,7 @@ class Controller:
         widget.setPixmap(image)
         x, y = x-image.width()/2, y-image.height()/2
         widget.setGeometry(QRect(x, y, image.width(), image.height()))
-        widget.mousePressEvent = self.select_piece(widget)
+        widget.mousePressEvent = self.select_or_capture(widget)
 
     def piece_image(self, chess, selected=False):
         pieces = 'rnbakcpRNBAKCP'
@@ -61,26 +61,52 @@ class Controller:
             x, y = pos.x(), pos.y()
             x, y = self.coord_to_position(x, y)
 
-    def select_piece(self, piece):
+    def select_or_capture(self, piece):
         def handler(event):
             if self.state == 'human-turn':
                 pos = piece.mapToParent(event.pos())
                 x, y = self.coord_to_position(pos.x(), pos.y())
                 i = rules.position_1(x, y)
-                if rules.side(self.board[i]) == self.side:
+                side = rules.side(self.board[i])
+                if side == self.side:
                     self.selected = i
                     self.update_selection()
+                else:
+                    if self.selected is not None and rules.can_move(self.board, self.selected, i):
+                        self.move_piece(self.selected, i)
+                        self.selected = i
         return handler
+
+    def move_piece(self, i0, i1):
+        self.board = rules.next_board(self.board, (i0,i1))
+        piece0 = self.find_piece(i0)
+        piece1 = self.find_piece(i1)
+        x, y = self.position_to_coord(*rules.position_2(i1))
+        piece0.setGeometry(x-piece0.width()//2, y-piece0.height()//2, piece0.width(), piece0.height())
+        if piece1 is not None:
+            sip.delete(piece1)
+
+    def find_piece(self, pos1d):
+        for p in self.all_pieces():
+            i = self.piece_pos1d(p)
+            if i == pos1d:
+                return p
+        else:
+            return None
 
     def update_selection(self):
         for p in self.all_pieces():
-            pos = p.pos()
-            x, y = self.coord_to_position(pos.x()+p.width()//2, pos.y()+p.height()//2)
-            i = rules.position_1(x, y)
+            i = self.piece_pos1d(p)
             p.setPixmap(self.piece_image(self.board[i], i==self.selected))
 
     def all_pieces(self):
         return self.ui.background.findChildren(QLabel)
+
+    def piece_pos1d(self, piece):
+        pos = piece.pos()
+        x, y = self.coord_to_position(pos.x()+piece.width()//2, pos.y()+piece.height()//2)
+        i = rules.position_1(x, y)
+        return i
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
