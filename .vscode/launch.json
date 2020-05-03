@@ -31,7 +31,7 @@
             "name": "play",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/ui.py",
+            "program": "${workspaceFolder}/ui/play.py",
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
             "env": {
