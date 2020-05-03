@@ -93,5 +93,34 @@ def play(model, state):
         action_logit, value = model.forward_one(node.board, node.side)
         action_probs = action_logit.exp().detach().cpu().numpy()
         value = value.item()
+        #action_probs = np.array([1/2086]*2086, dtype=np.float32)
+        #value = 0
         node.expand(moves, action_probs)
     node.backup(value)
+
+def select(moves, probs, keep):
+    probs = probs*keep+np.random.dirichlet(0.3*np.ones(probs.size))*(1-keep)
+    index = np.random.choice(probs.size, p=probs)
+    return moves[index]
+
+def ponder(model, board, side, playouts=1200, keep=0.75):
+    state = State(board, side)
+    for _ in range(playouts):
+        play(model, state)
+        if state.terminal:
+            break
+    moves, probs = state.statistics()
+    move = select(moves, probs, keep)
+    action_probs = rules.MoveTransform.map_probs(moves, probs)
+    return move, action_probs
+
+if __name__ == '__main__':
+    from package.models import Model
+    model = Model()
+    #board = 'rn ak bnr         bc   a c p p C p p             C    P P P P P                  RNBAKABNR'
+    #side = -1
+    #board = 'rn ak bnr         bc   a c p p C p p             C    P P P P P        B         RNBAKA NR'
+    #side = 1
+    board = 'rnbaka nr          c  c   bp p C p p                  P P P P P C    N           RNBAKAB R'
+    side = -1
+    ponder(model, board, side, keep=1)

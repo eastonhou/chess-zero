@@ -5,7 +5,7 @@ from package.rules import MoveTransform, rotate_board
 
 class Model(nn.Module):
     __default_checkpoint__ = 'checkpoints/model.ckpt'
-    def __init__(self, num_residual_blocks, embedding_dim=80):
+    def __init__(self, num_residual_blocks=7, embedding_dim=80):
         super(__class__, self).__init__()
         self.embedding_dim = embedding_dim
         self.input_layer = self._make_input_layer(embedding_dim)
@@ -17,6 +17,7 @@ class Model(nn.Module):
         self.embeddings = nn.Embedding(15, embedding_dim, padding_idx=0)
         if os.path.isfile(__class__.__default_checkpoint__):
             self.load_checkpoint(__class__.__default_checkpoint__)
+            print(f'loaded checkpoint.')
 
     def forward_one(self, board, side):
         p, v = self.forward_some([(board, side)])

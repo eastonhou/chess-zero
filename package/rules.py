@@ -53,7 +53,7 @@ def side(chess):
 
 
 def gameover_position(board):
-    return board.count('K')==0 or board.count('k')==0
+    return board.upper().count('K') < 2
 
 
 def next_rider_steps(board, pos):
