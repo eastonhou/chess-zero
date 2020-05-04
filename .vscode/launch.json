@@ -8,7 +8,7 @@
             "name": "train (linux)",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/c++/train.out",
+            "program": "${workspaceFolder}/c++/bin/train",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

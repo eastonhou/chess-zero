@@ -11,6 +11,22 @@
             "type": "shell",
             "command": "make",
             "args": [
+                "build=debug",
+                "--file=${workspaceFolder}/c++/Makefile",
+                "train"
+            ],
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "build-release",
+            "type": "shell",
+            "command": "make",
+            "args": [
+                "build=release",
                 "--file=${workspaceFolder}/c++/Makefile",
                 "train"
             ],

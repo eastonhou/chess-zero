@@ -1,11 +1,19 @@
 BASE = $(shell pwd)
-TORCH_API = -I$(BASE)/libtorch/include/torch/csrc/api/include
-TORCH_INC = -I$(BASE)/libtorch/include
-TORCH_LIB = -L$(BASE)/libtorch/lib
+ifeq ($(build), debug)
+TORCH_BASE = libtorch/debug
+CFLAGS = -Wall -Werror -std=c++14 -g -Ddebug
+else
+TORCH_BASE = libtorch/release
+CFLAGS = -Wall -Werror -std=c++14 -g -O3
+endif
+
+TORCH_API = -I$(BASE)/$(TORCH_BASE)/include/torch/csrc/api/include
+TORCH_INC = -I$(BASE)/$(TORCH_BASE)/include
+TORCH_LIB = -L$(BASE)/$(TORCH_BASE)/lib
 OUTPUT = $(BASE)/bin
 BUILD = $(BASE)/build
 OBJS = $(BASE)/build/objs
-CFLAGS = -Wall -Werror -std=c++14 -g -O
+
 prebuild:
 	mkdir $(OUTPUT)
 	mkdir -p $(OBJS)
