@@ -10,43 +10,43 @@
             "request": "launch",
             "program": "${file}",
             "justMyCode": false,
-            "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceFolder}/python",
             "console": "integratedTerminal",
             "env": {
-                "PYTHONPATH": "${workspaceFolder}"
+                "PYTHONPATH": "${workspaceFolder}/python"
             }
         },
         {
             "name": "train",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/train.py",
-            "cwd": "${workspaceFolder}",
+            "program": "${workspaceFolder}/python/train.py",
+            "cwd": "${workspaceFolder}/python",
             "console": "integratedTerminal",
             "env": {
-                "PYTHONPATH": "${workspaceFolder}"
+                "PYTHONPATH": "${workspaceFolder}/python"
             }
         },
         {
             "name": "play",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/ui/play.py",
-            "cwd": "${workspaceFolder}",
+            "program": "${workspaceFolder}/python/ui/play.py",
+            "cwd": "${workspaceFolder}/python",
             "console": "integratedTerminal",
             "env": {
-                "PYTHONPATH": "${workspaceFolder}"
+                "PYTHONPATH": "${workspaceFolder}/python"
             }
         },
         {
             "name": "mcts",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/package/mcts.py",
-            "cwd": "${workspaceFolder}",
+            "program": "${workspaceFolder}/python/package/mcts.py",
+            "cwd": "${workspaceFolder}/python",
             "console": "integratedTerminal",
             "env": {
-                "PYTHONPATH": "${workspaceFolder}"
+                "PYTHONPATH": "${workspaceFolder}/python"
             }
         }
     ]
