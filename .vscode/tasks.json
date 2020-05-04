@@ -1,0 +1,36 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "options": {
+        "cwd": "${workspaceFolder}/c++"
+    },
+    "tasks": [
+        {
+            "label": "build-linux-0",
+            "type": "shell",
+            "command": "g++",
+            "args": [
+                "-g",
+                "${workspaceFolder}/c++/train.cpp",
+                "-std=c++11",
+                "-o",
+                "${fileBasenameNoExtension}.out"
+            ]
+        },
+        {
+            "label": "build-linux",
+            "type": "shell",
+            "command": "make",
+            "args": [
+                "--file=${workspaceFolder}/c++/Makefile",
+                "train"
+            ],
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ]
+}
