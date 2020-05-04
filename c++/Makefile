@@ -1,10 +1,10 @@
 BASE = $(shell pwd)
 ifeq ($(build), debug)
 TORCH_BASE = libtorch/debug
-CFLAGS = -Wall -Werror -std=c++14 -g -Ddebug
+CFLAGS = -Wall -Werror -std=c++17 -g -Ddebug
 else
 TORCH_BASE = libtorch/release
-CFLAGS = -Wall -Werror -std=c++14 -g -O3
+CFLAGS = -Wall -Werror -std=c++17 -g -O3
 endif
 
 TORCH_API = -I$(BASE)/$(TORCH_BASE)/include/torch/csrc/api/include

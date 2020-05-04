@@ -327,22 +327,22 @@ class MoveTransform:
 
     @staticmethod
     def _compute_move_ids():
-        elephant_positions = [(2,0),(6,0),(0,2),(4,2),(8,2),(2,4),(6,4)]
-        bishop_positions = [(3,0),(5,0),(4,1),(3,2),(5,2)]
-        elephant_positions = __class__._make_id_and_mirror(elephant_positions)
+        bishop_positions = [(2,0),(6,0),(0,2),(4,2),(8,2),(2,4),(6,4)]
+        adviser_positions = [(3,0),(5,0),(4,1),(3,2),(5,2)]
         bishop_positions = __class__._make_id_and_mirror(bishop_positions)
+        adviser_positions = __class__._make_id_and_mirror(adviser_positions)
         def possible_moves(i0, i1):
             x0, y0 = position_2(i0)
             x1, y1 = position_2(i1)
             if x0 == x1 and y0 == y1:
                 return False
             elif abs(y1-y0) == abs(x1-x0) == 2:
-                return i0 in elephant_positions and i1 in elephant_positions
-            elif abs(y1-y0) == abs(x1-x0) == 1:
                 return i0 in bishop_positions and i1 in bishop_positions
+            elif abs(y1-y0) == abs(x1-x0) == 1:
+                return i0 in adviser_positions and i1 in adviser_positions
             elif abs((y1-y0)*(x1-x0)) == 2:
                 return True
-            elif abs((y1-y0)*(x1-x0)) == 0:
+            elif (y1-y0)*(x1-x0) == 0:
                 return True
             else:
                 return False

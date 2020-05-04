@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <map>
 #include <ctype.h>
 #include <tuple>
 #include <set>
@@ -8,56 +9,6 @@
 
 const int BASE = 100;
 const int GAMEOVER_THRESHOLD = 150 * BASE;
-
-class rule_t
-{
-	friend class square_rule_t;
-public:
-	static std::vector<char> chess_types()
-	{
-		return { 'R', 'r', 'H', 'h', 'E', 'e', 'B', 'b', 'K', 'k', 'C', 'c', 'P', 'p' };
-	}
-	static int gameover_threshold() { return GAMEOVER_THRESHOLD; }
-	static int basic_score(const std::string& board)
-	{
-		static std::once_flag flag;
-		static int score_map[128] = { 0 };
-		std::call_once(flag, []
-		{
-			score_map['R'] = 10;
-			score_map['H'] = 4;
-			score_map['E'] = 1;
-			score_map['B'] = 1;
-			score_map['K'] = 300;
-			score_map['C'] = 4;
-			score_map['P'] = 1;
-			for (auto type : rule_t::chess_types())
-			{
-				if (islower(type))
-					score_map[type] = -score_map[toupper(type)];
-			}
-			for (size_t k = 0; k < _countof(score_map); ++k)
-				score_map[k] *= BASE;
-		});
-		auto r = std::accumulate(board.begin(), board.end(), 0, [](int a, char b) { return a + score_map[b]; });
-		return r;
-	}
-
-	static char flip_side(char piece)
-	{
-		if (move_t::is_red(piece))
-			return tolower(piece);
-		else if (' ' == piece)
-			return piece;
-		else
-			return toupper(piece);
-	}
-
-	static std::string rotate_board(const std::string& board)
-	{
-		return std::string(board.rbegin(), board.rend());
-	}
-};
 
 class move_t
 {
@@ -103,7 +54,7 @@ public:
 				moves = pawn_steps(board, k);
 				break;
 			default:
-				throw std::exception("invalid chess");
+				throw "invalid chess";
 				break;
 			}
 			for (auto move : moves)
@@ -345,5 +296,161 @@ public:
 	static int valid_position(int x, int y)
 	{
 		return x >= 0 && x < 9 && y >= 0 && y < 10;
+	}
+};
+
+class rule_t
+{
+	friend class square_rule_t;
+public:
+	static std::vector<char> chess_types()
+	{
+		return { 'R', 'r', 'H', 'h', 'E', 'e', 'B', 'b', 'K', 'k', 'C', 'c', 'P', 'p' };
+	}
+	static int gameover_threshold() { return GAMEOVER_THRESHOLD; }
+	static int basic_score(const std::string& board)
+	{
+		static std::once_flag flag;
+		static std::array<int, 128> score_map = { 0 };
+		std::call_once(flag, []
+		{
+			score_map['R'] = 10;
+			score_map['H'] = 4;
+			score_map['E'] = 1;
+			score_map['B'] = 1;
+			score_map['K'] = 300;
+			score_map['C'] = 4;
+			score_map['P'] = 1;
+			for (int type : rule_t::chess_types())
+			{
+				if (islower(type))
+					score_map[type] = -score_map[toupper(type)];
+			}
+			for (size_t k = 0; k < score_map.size(); ++k)
+				score_map[k] *= BASE;
+		});
+		auto r = std::accumulate(board.begin(), board.end(), 0, [](int a, char b) { return a + score_map[b]; });
+		return r;
+	}
+
+	static char flip_side(char piece)
+	{
+		if (move_t::is_red(piece))
+			return tolower(piece);
+		else if (' ' == piece)
+			return piece;
+		else
+			return toupper(piece);
+	}
+
+	static std::string rotate_board(const std::string& board)
+	{
+		return std::string(board.rbegin(), board.rend());
+	}
+};
+
+class MoveTransform {
+public:
+	typedef std::pair<int32_t, int32_t> pos2_t;
+	const static size_t action_size = 2086;
+public:
+	static int32_t move_to_id(const pos2_t& move) {
+		static auto _m2i = _compute_m2i();
+		return _m2i[move];
+	}
+	static const std::pair<int, int>& id_to_move(int32_t id) {
+		static auto _i2m = _compute_i2m();
+		return _i2m[id];
+	}
+	static std::vector<float> onehot(const pos2_t& move) {
+		static auto _m2i = _compute_m2i();
+		std::vector<float> action_probs(action_size, 0);
+		action_probs[_m2i[move]] = 1;
+		return action_probs;
+	}
+	static std::array<int, action_size> rotate_indices() {
+		static auto result = _compute_rotate_indices();
+		return result;
+	}
+	static std::array<float, action_size> map_probs(const std::vector<pos2_t>& moves, const std::vector<float>& probs) {
+		static auto _m2i = _compute_m2i();
+		std::array<float, action_size> result = {0};
+		int i = 0;
+		for (auto move : moves) {
+			auto id = _m2i[move];
+			result[id] = probs[i++];
+		}
+		return result;
+	}
+private:
+	static std::vector<pos2_t> _compute_move_ids() {
+		auto bishop_positions = _make_id_and_mirror({
+			{2, 0}, {6, 0}, {0, 2}, {4, 2}, {8, 2}, {2, 4}, {6, 4}
+		});
+		auto adviser_positions = _make_id_and_mirror({
+			{3, 0}, {5, 0}, {4, 1}, {3, 2}, {5, 2}
+		});
+		auto possible_moves = [&](int i0, int i1)->bool {
+			auto m0 = move_t::position2(i0);
+			auto m1 = move_t::position2(i1);
+			if (m0 == m1) return false;
+			else if (abs(m0.first - m1.first) == 1 && abs(m0.second - m1.second) == 1) {
+				return adviser_positions.count(i0) && adviser_positions.count(i1);
+			}
+			else if (abs(m0.first - m1.first) == 2 && abs(m0.second - m1.second) == 2) {
+				return bishop_positions.count(i0) && bishop_positions.count(i1);
+			}
+			else if (abs((m1.first - m0.first) * (m1.second - m0.second)) == 2)
+				return true;
+			else if ((m1.first - m0.first) * (m1.second - m0.second) == 0)
+				return true;
+			else
+				return false;
+		};
+		std::set<pos2_t> moves;
+		for (int i0 = 0; i0 < 90; ++i0) {
+			for (int i1 = 0; i1 < 90; ++i1) {
+				if (possible_moves(i0, i1))
+					moves.insert({i0, i1});
+			}
+		}
+		return std::vector<pos2_t>(moves.begin(), moves.end());
+	}
+	static std::map<pos2_t, int> _compute_m2i() {
+		std::map<pos2_t, int> m2i;
+		int id = 0;
+		for (auto x : _compute_move_ids()) {
+			m2i[x] = id++;
+		}
+		return m2i;
+	}
+	static std::map<int, pos2_t> _compute_i2m() {
+		std::map<int, pos2_t> i2m;
+		int id = 0;
+		for(auto x : _compute_move_ids()) {
+			i2m[id++] = x;
+		}
+		return i2m;
+	}
+	static std::array<int, action_size> _compute_rotate_indices() {
+		static auto _i2m = _compute_i2m();
+		static auto _m2i = _compute_m2i();
+		std::array<int, action_size> result = {0};
+		for (auto it = _i2m.begin(); it != _i2m.end(); ++it) {
+			auto id = it->first;
+			auto move = it->second;
+			auto rid = _m2i[{89 - move.first, 89 - move.second}];
+			result[id] = rid;
+		}
+		return result;
+	}
+	static std::set<int32_t> _make_id_and_mirror(const std::set<pos2_t>& positions) {
+		std::set<int32_t> ids;
+		for (auto x : positions) {
+			auto id = move_t::position1(x.first, x.second);
+			ids.insert(id);
+			ids.insert(89 - id);
+		}
+		return ids;
 	}
 };
