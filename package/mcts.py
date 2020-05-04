@@ -25,8 +25,8 @@ class Node:
             return self.W/self.N*-self.side if self.N else 0
 
     @property
-    def U(self, c=5):
-        return c*self.P*self.parent.N**0.5/(1+self.N)
+    def U(self, c=0.5):
+        return max(c*self.parent.N**0.5/(1+self.N), self.P)
 
     def select(self):
         scores = [x.Q+x.U for x in self.children]
@@ -99,8 +99,11 @@ def play(model, state):
     node.backup(value)
 
 def select(moves, probs, keep):
-    probs = probs*keep+np.random.dirichlet(0.3*np.ones(probs.size))*(1-keep)
-    index = np.random.choice(probs.size, p=probs)
+    if keep >= 1:
+        index = probs.argmax()
+    else:
+        probs = probs*keep+np.random.dirichlet(0.3*np.ones(probs.size))*(1-keep)
+        index = np.random.choice(probs.size, p=probs)
     return moves[index]
 
 def ponder(model, board, side, playouts=1200, keep=0.75):
