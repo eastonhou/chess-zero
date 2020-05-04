@@ -7,18 +7,6 @@
     },
     "tasks": [
         {
-            "label": "build-linux-0",
-            "type": "shell",
-            "command": "g++",
-            "args": [
-                "-g",
-                "${workspaceFolder}/c++/train.cpp",
-                "-std=c++11",
-                "-o",
-                "${fileBasenameNoExtension}.out"
-            ]
-        },
-        {
             "label": "build-linux",
             "type": "shell",
             "command": "make",

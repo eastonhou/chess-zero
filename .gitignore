@@ -2,3 +2,5 @@
 .vscode/settings.json
 *.ckpt
 c++/libtorch
+c++/bin
+c++/build
