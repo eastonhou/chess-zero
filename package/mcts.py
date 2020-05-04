@@ -1,6 +1,7 @@
 import numpy as np
 from package import rules
 from package.models import MoveTransform
+from package import utils
 
 class Node:
     def __init__(self, board, side, parent=None):
@@ -33,6 +34,26 @@ class Node:
         index = np.argmax(scores)
         return self.moves[index], self.children[index]
 
+    def select_to_leaf(self):
+        node = self
+        while node.children is not None:
+            _, node = node.select()
+        return node
+
+    def select_multiple(self, n):
+        nodes = []
+        for _ in range(n):
+            node = self.select_to_leaf()
+            if node in nodes:
+                break
+            node.backup(node.side*1000)
+            nodes.append(node)
+            if node.terminal:
+                break
+        for node in nodes:
+            node.backup(node.side*1000, -1)
+        return nodes
+
     def expand(self, moves, action_probs):
         self.moves = moves
         self.children = []
@@ -46,11 +67,11 @@ class Node:
         for child in self.children:
             child.P /= total_P
 
-    def backup(self, value):
+    def backup(self, value, direction=1):
         node = self
         while node is not None:
-            node.W += value
-            node.N += 1
+            node.W += value*direction
+            node.N += 1*direction
             node = node.parent
 
     def complete(self):
@@ -61,12 +82,6 @@ class State:
     def __init__(self, board, side):
         self.root = Node(board, side, None)
         self.terminal = False
-
-    def move_to_leaf(self):
-        node = self.root
-        while node.children is not None:
-            _, node = node.select()
-        return node
 
     def statistics(self):
         visits = [x.N if not x.terminal else 1E8 for x in self.root.children]
@@ -81,7 +96,7 @@ class State:
         self.terminal = True
 
 def play(model, state):
-    node = state.move_to_leaf()
+    node = state.root.select_to_leaf()
     if node.terminal:
         state.complete()
         return
@@ -89,14 +104,32 @@ def play(model, state):
         value = -node.side
         node.complete()
     else:
-        moves = rules.next_steps(node.board, node.side == 1)
+        moves = rules.next_steps(node.board, node.side==1)
         action_logit, value = model.forward_one(node.board, node.side)
         action_probs = action_logit.exp().detach().cpu().numpy()
         value = value.item()
-        #action_probs = np.array([1/2086]*2086, dtype=np.float32)
-        #value = 0
         node.expand(moves, action_probs)
     node.backup(value)
+
+def play_multiple(model, state, n):
+    nodes = state.root.select_multiple(n)
+    nonterminals = []
+    for node in nodes:
+        if rules.gameover_position(node.board):
+            node.complete()
+            node.backup(-node.side)
+        else:
+            nonterminals.append(node)
+    if not nonterminals:
+        return
+    records = [(x.board, x.side) for x in nonterminals]
+    logits, values = model.forward_some(records)
+    probs = logits.exp().detach().cpu().numpy()
+    values = values.detach().cpu().numpy()
+    moves = [rules.next_steps(x.board, x.side==1) for x in nonterminals]
+    for _node, _moves, _probs, _value in zip(nonterminals, moves, probs, values):
+        _node.expand(_moves, _probs)
+        _node.backup(_value)
 
 def select(moves, probs, keep):
     if keep >= 1:
@@ -106,12 +139,15 @@ def select(moves, probs, keep):
         index = np.random.choice(probs.size, p=probs)
     return moves[index]
 
-def ponder(model, board, side, playouts=1200, keep=0.75):
+def ponder(model, board, side, playouts=200, keep=0.75):
     state = State(board, side)
+    timer = utils.Timer()
     for _ in range(playouts):
-        play(model, state)
+        play_multiple(model, state, 64)
+        timer.check('ponder.step', count=1)
         if state.terminal:
             break
+    timer.print()
     moves, probs = state.statistics()
     move = select(moves, probs, keep)
     action_probs = rules.MoveTransform.map_probs(moves, probs)
