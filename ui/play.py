@@ -1,4 +1,4 @@
-import sys
+import sys, asyncio, threading
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel
 from PyQt5.QtGui import QMouseEvent, QPixmap
 from PyQt5.QtCore import QRect
@@ -88,7 +88,8 @@ class Controller:
         self.side = -self.side
         if self.state == 'ai-turn':
             self.update_selection(None)
-            self.ai_turn()
+            thread = threading.Thread(target=self.ai_turn)
+            thread.start()
 
     def ai_turn(self):
         move, _ = mcts.ponder(self.model, self.board, self.side, keep=1)
