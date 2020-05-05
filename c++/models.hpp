@@ -3,6 +3,7 @@
 #include <torch/nn.h>
 #include <list>
 #include <string>
+#include "definitions.hpp"
 #include "rules.hpp"
 
 class model_t : torch::nn::Module {
@@ -37,7 +38,7 @@ public:
 		auto inputs = _convert_inputs(records);
 		auto results = forward(inputs);
 		for (size_t k = 0; k < inputs.size(0); ++k) {
-			auto side = records[k]._1;
+			auto side = records[k].side;
 			auto& p = results._0;
 			auto& v = results._1;
 			if (side == -1) {
@@ -45,31 +46,31 @@ public:
 				v[k] = -v[k];
 			}
 		}
-		return {p, v};
+		return results;
 	}
 	std::tuple<torch::Tensor, torch::Tensor> forward(const torch::Tensor& inputs) {
 		auto embeddings = _embeddings(inputs).permute({0, 3, 1, 2}).contiguous();
 		auto x = _input_layer->forward(embeddings);
-		for (auto& m : *_residual_blocks) {
+		for (auto& m : _residual_blocks) {
 			auto a = m->forward(x);
 			x = torch::nn::functional::relu(a + x);
 		}
 		auto p = _run_head(_policy_head, _policy_projection, x);
 		auto v = _run_head(_value_head, _value_projection, x).view(-1);
-		return {p, v};
+		return std::make_tuple(p, v);
 	}
 	template<template<class> class Container>
 	void update_policy(
 		std::shared_ptr<torch::optim::Optimizer> optimizer,
-		const Container<std::tuple<record_t, target_t>>& records,
-		int epochs=10) {
+		const Container<train_record_t>& records,
+		size_t epochs=10) {
 		std::list<record_t> inputs;
-		std::list<target_t> labels;
+		std::list<label_t> labels;
 		std::list<int> sides;
 		for (auto& x : records) {
-			inputs.push_back(x._0);
-			labels.push_back(x._1);
-			sides.push_back(x._0._1);
+			inputs.push_back(x.input);
+			labels.push_back(x.label);
+			sides.push_back(x.input.side);
 		}
 		auto targets = _convert_targets(labels, sides);
 		float tloss = 0;
@@ -87,14 +88,14 @@ public:
 		}
 		std::cout << "LOSS: " << tloss/inputs.size() << std::endl;
 	}
-	std::shard_ptr<torch::optim::Optimizer> create_optimizer() {
+	std::shared_ptr<torch::optim::Optimizer> create_optimizer() {
 		auto optimizer = std::make_shared<torch::optim::Adam>(parameters());
 		return std::static_pointer_cast<torch::optim::Optimizer>(optimizer);
 	}
 private:
 	template<template<class> class Container>
 	std::tuple<std::vector<std::array<int, 90>>, std::vector<float>> _convert_targets(
-		const Container<target_t>& labels, const Container<int> sides) {
+		const Container<label_t>& labels, const Container<int> sides) {
 		std::list<std::array<float, MoveTransform::action_size>> ps;
 		std::vector<float> vs;
 		for (size_t k = 0; k < labels.size(); ++k) {
@@ -155,7 +156,7 @@ private:
 private:
 	template<typename Head, typename Projection>
 	torch::Tensor _run_head(Head& head, Projection& projection, const torch::Tensor& values) {
-		auto x = head(values).reshape(values.size(0), -1);
+		auto x = head->forward(values).reshape(values.size(0), -1);
 		auto y = projection(x);
 		return y;
 	}
@@ -177,7 +178,7 @@ private:
 	}
 	torch::nn::Sequential _make_policy_projection() {
 		return torch::nn::Sequential(
-			torch::nn::Linear(180, MoveTransform::action_size),
+			torch::nn::Linear(180, ACTION_SIZE),
 			torch::nn::LogSoftmax(-1)
 		);
 	}

@@ -59,7 +59,7 @@ public:
 				break;
 			}
 			for (auto move : moves)
-				steps.push_back(action_t((int)k, move));
+				steps.push_back({(int)k, move});
 		}
 		return steps;
 	}
@@ -280,9 +280,9 @@ public:
 	}
 
 
-	static action_t position2(int pos)
+	static std::pair<int, int> position2(int pos)
 	{
-		return action_t(pos % 9, pos / 9);
+		return {pos % 9, pos / 9};
 	}
 	static int side(char chess)
 	{
@@ -367,17 +367,16 @@ public:
 
 class MoveTransform {
 public:
-	typedef std::pair<int32_t, int32_t> pos2_t;
 public:
-	static int32_t move_to_id(const pos2_t& move) {
+	static int32_t move_to_id(const action_t& move) {
 		static auto _m2i = _compute_m2i();
 		return _m2i[move];
 	}
-	static const action_t& id_to_move(int32_t id) {
+	static action_t& id_to_move(int32_t id) {
 		static auto _i2m = _compute_i2m();
 		return _i2m[id];
 	}
-	static std::vector<float> onehot(const pos2_t& move) {
+	static std::vector<float> onehot(const action_t& move) {
 		static auto _m2i = _compute_m2i();
 		std::vector<float> action_probs(ACTION_SIZE, 0);
 		action_probs[_m2i[move]] = 1;
@@ -387,7 +386,7 @@ public:
 		static auto result = _compute_rotate_indices();
 		return result;
 	}
-	static std::array<float, ACTION_SIZE> map_probs(const std::vector<pos2_t>& moves, const std::vector<float>& probs) {
+	static std::array<float, ACTION_SIZE> map_probs(const std::vector<action_t>& moves, const std::vector<float>& probs) {
 		static auto _m2i = _compute_m2i();
 		std::array<float, ACTION_SIZE> result = {0};
 		int i = 0;
@@ -398,7 +397,7 @@ public:
 		return result;
 	}
 private:
-	static std::vector<pos2_t> _compute_move_ids() {
+	static std::vector<action_t> _compute_move_ids() {
 		auto bishop_positions = _make_id_and_mirror({
 			{2, 0}, {6, 0}, {0, 2}, {4, 2}, {8, 2}, {2, 4}, {6, 4}
 		});
@@ -422,25 +421,25 @@ private:
 			else
 				return false;
 		};
-		std::set<pos2_t> moves;
+		std::set<action_t> moves;
 		for (int i0 = 0; i0 < 90; ++i0) {
 			for (int i1 = 0; i1 < 90; ++i1) {
 				if (possible_moves(i0, i1))
 					moves.insert({i0, i1});
 			}
 		}
-		return std::vector<pos2_t>(moves.begin(), moves.end());
+		return std::vector<action_t>(moves.begin(), moves.end());
 	}
-	static std::map<pos2_t, int> _compute_m2i() {
-		std::map<pos2_t, int> m2i;
+	static std::map<action_t, int> _compute_m2i() {
+		std::map<action_t, int> m2i;
 		int id = 0;
 		for (auto x : _compute_move_ids()) {
 			m2i[x] = id++;
 		}
 		return m2i;
 	}
-	static std::map<int, pos2_t> _compute_i2m() {
-		std::map<int, pos2_t> i2m;
+	static std::map<int, action_t> _compute_i2m() {
+		std::map<int, action_t> i2m;
 		int id = 0;
 		for(auto x : _compute_move_ids()) {
 			i2m[id++] = x;
@@ -454,15 +453,15 @@ private:
 		for (auto it = _i2m.begin(); it != _i2m.end(); ++it) {
 			auto id = it->first;
 			auto move = it->second;
-			auto rid = _m2i[{89 - move.first, 89 - move.second}];
+			auto rid = _m2i[{89 - move.from, 89 - move.to}];
 			result[id] = rid;
 		}
 		return result;
 	}
-	static std::set<int32_t> _make_id_and_mirror(const std::set<pos2_t>& positions) {
+	static std::set<int32_t> _make_id_and_mirror(const std::set<action_t>& positions) {
 		std::set<int32_t> ids;
 		for (auto x : positions) {
-			auto id = move_t::position1(x.first, x.second);
+			auto id = move_t::position1(x.from, x.to);
 			ids.insert(id);
 			ids.insert(89 - id);
 		}

@@ -1,3 +1,5 @@
+#pragma once
+
 #include <string>
 #include <array>
 
@@ -16,6 +18,11 @@ struct label_t {
 struct action_t {
     int from;
     int to;
+    bool operator < (const action_t& other)const {
+        if (from < other.from) return true;
+        if (from > other.from) return false;
+        return to < other.to;
+    }
 };
 
 struct train_record_t {
