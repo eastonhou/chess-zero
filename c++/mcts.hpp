@@ -102,7 +102,7 @@ public:
     }
     std::vector<float> statistics()const {
         std::vector<float> visits;
-        float sum;
+        float sum = 0;
         for (auto& x : root->children) {
             auto N = x->terminal ? 1E8 : x->N;
             visits.push_back(N);
