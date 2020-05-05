@@ -8,14 +8,14 @@ private:
     model_t _model;
     std::shared_ptr<torch::optim::Optimizer> _optimizer;
 public:
-    Trainer(): _model(), _optimizer(_model.create_optimizer()) {
+    Trainer(): _model(), _optimizer(_model->create_optimizer()) {
         auto device = torch::Device(c10::DeviceType::CUDA);
-        _model.to(device);
+        _model->to(device);
     }
     void run() {
         while (true) {
             auto train_data = play();
-            _model.update_policy(_optimizer, train_data);
+            _model->update_policy(_optimizer, train_data);
         }
     }
     std::list<train_record_t> play(int nocapture=60) {

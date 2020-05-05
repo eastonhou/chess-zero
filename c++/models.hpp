@@ -8,7 +8,7 @@
 #include "definitions.hpp"
 #include "rules.hpp"
 #include "utils.hpp"
-class model_t : public torch::nn::Module {
+class model_imply_t : public torch::nn::Module {
 private:
 	torch::nn::Embedding _embeddings;
 	torch::nn::Sequential _input_layer;
@@ -19,7 +19,7 @@ private:
 	torch::nn::Sequential _value_projection;
 
 public:
-	model_t(int num_residual_blocks=7, int embedding_dim=80)
+	model_imply_t(int num_residual_blocks=7, int embedding_dim=80)
 	: _embeddings(torch::nn::Embedding(torch::nn::EmbeddingOptions(15, embedding_dim).padding_idx(0)))
 	, _input_layer(_make_input_module(embedding_dim))
 	, _residual_blocks(_make_residual_blocks(num_residual_blocks))
@@ -214,13 +214,5 @@ private:
 		return torch::nn::ReLU(torch::nn::ReLUOptions(true));
 	}
 };
-/*
-template<>
-torch::Tensor model_t::tensor(const torch::Tensor& values) {
-	return values.to(c10::TensorOptions(device()));
-}*/
-/*
-template<typename Ty, size_t N>
-torch::Tensor model_t::tensor(const std::array<Ty, N>& values) {
-	return torch::tensor(std::vector<Ty>(values.begin(), values.end()), device());
-}*/
+
+TORCH_MODULE_IMPL(model_t, model_imply_t);

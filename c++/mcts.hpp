@@ -118,7 +118,7 @@ public:
 
 class mcts_t {
 public:
-    static void play_multiple(model_t& model, state_t& state, int n) {
+    static void play_multiple(model_t model, state_t& state, int n) {
         auto nodes = state.root->select_multiple(n);
         std::vector<nodeptr> nonterminals;
         for (auto& node : nodes) {
@@ -135,7 +135,7 @@ public:
         for (auto& x : nonterminals) {
             records.push_back({x->board, x->side});
         }
-        auto result = model.forward_some(records);
+        auto result = model->forward_some(records);
         auto probs = std::get<0>(result).exp().cpu().data_ptr<float>();
         auto values = std::get<1>(result).cpu().data_ptr<float>();
         for (size_t k = 0; k < nonterminals.size(); ++k) {
@@ -164,7 +164,7 @@ public:
         }
     }
     static std::tuple<action_t, action_probs_t> ponder(
-        model_t& model, const std::string& board, int side, size_t playouts=200, float keep=0.75) {
+        model_t model, const std::string& board, int side, size_t playouts=200, float keep=0.75) {
         state_t state(board, side);
         for (size_t k = 0; k < playouts; ++k) {
             play_multiple(model, state, 64);
