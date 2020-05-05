@@ -14,17 +14,17 @@ const int GAMEOVER_THRESHOLD = 150 * BASE;
 class move_t
 {
 public:
-	static std::string next_board(const std::string& board, const std::pair<int, int>& move)
+	static std::string next_board(const std::string& board, const action_t& move)
 	{
 		auto r = board;
-		r[move.second] = r[move.first];
-		r[move.first] = ' ';
+		r[move.to] = r[move.from];
+		r[move.from] = ' ';
 		return r;
 	}
 
-	static std::vector<std::pair<int, int>> next_steps(const std::string& board, bool red)
+	static std::vector<action_t> next_steps(const std::string& board, bool red)
 	{
-		std::vector<std::pair<int, int>> steps;
+		std::vector<action_t> steps;
 		for (int k = 0; k < (int)board.size(); ++k)
 		{
 			auto chess = board[k];
@@ -59,7 +59,7 @@ public:
 				break;
 			}
 			for (auto move : moves)
-				steps.push_back(std::pair<int, int>((int)k, move));
+				steps.push_back(action_t((int)k, move));
 		}
 		return steps;
 	}
@@ -280,9 +280,9 @@ public:
 	}
 
 
-	static std::pair<int, int> position2(int pos)
+	static action_t position2(int pos)
 	{
-		return std::pair<int, int>(pos % 9, pos / 9);
+		return action_t(pos % 9, pos / 9);
 	}
 	static int side(char chess)
 	{
@@ -373,7 +373,7 @@ public:
 		static auto _m2i = _compute_m2i();
 		return _m2i[move];
 	}
-	static const std::pair<int, int>& id_to_move(int32_t id) {
+	static const action_t& id_to_move(int32_t id) {
 		static auto _i2m = _compute_i2m();
 		return _i2m[id];
 	}

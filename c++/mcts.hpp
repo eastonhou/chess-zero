@@ -5,6 +5,8 @@
 #include <algorithm>
 #include "definitions.hpp"
 #include "rules.hpp"
+#include "models.hpp"
+#include "utils.hpp"
 
 typedef std::shared_ptr<class node_t> nodeptr;
 class node_t : std::enable_shared_from_this<node_t> {
@@ -110,5 +112,64 @@ public:
     }
     void complete() {
         terminal = true;
+    }
+};
+
+class mcts_t {
+public:
+    static void play_multiple(model_t& model, state_t& state, int n) {
+        auto nodes = state.root->select_multiple(n);
+        std::vector<nodeptr> nonterminals;
+        for (auto& node : nodes) {
+            if (rule_t::gameover_position(node->board)) {
+                node->complete();
+                node->backup(-node.side);
+            }
+            else {
+                nonterminals.push_back(node);
+            }
+        }
+        if (nonterminals.empty()) return;
+        std::vector<record_t> records;
+        for (auto& x : nonterminals) {
+            records.push_back({x->board, x->side});
+        }
+        auto result = model.forward_some(records);
+        auto probs = result._0.exp().to_vector();
+        auto values = result._1.to_vector();
+        for (size_t k = 0; k < nonterminals.size(); ++k) {
+            auto& node = nonterminals[k];
+            auto moves = move_t::next_steps(node->board, node->side == 1);
+            node->expand(moves, probs[k]);
+            node->backup(values[k]);
+        }
+    }
+    template<template<class> class Cty0, template<class> class Cty1>
+    static action_t select(const Cty0<action_t>& moves, const Cty1<float>& probs, float keep) {
+        if (keep >= 1) {
+            auto index = argmax(probs.begin(), probs.end());
+            return moves[index];
+        }
+        else {
+            std::vector<float> probs_with_noise(probs.size());
+            std::vector<float> noise = random_normal(probs.size(), 0, 0.3);
+            for (size_t k = 0; k < probs.size(); ++k) {
+                probs_with_noise[k] = probs[k]*keep + noise[k]*(1-keep);
+            }
+            auto index = argmax(probs_with_noise.begin(), probs_with_noise.end());
+            return moves[index];
+        }
+    }
+    static std::tuple<action_t, action_probs_t> ponder(
+        model_t& model, const std::string& board, int side, int playouts=200, float keep=0.75) {
+        state_t state(board, side);
+        for (size_t k = 0; k < playouts; ++k) {
+            play_multiple(model, state, 64);
+            if (state.terminal) break;
+        }
+        auto probs = state.statistics();
+        auto move = select(state.root->moves, probs, keep);
+        auto action_probs = MoveTransform::map_probs(state.root->moves, probs);
+        return move, action_probs;
     }
 };

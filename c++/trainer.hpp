@@ -36,8 +36,8 @@ public:
             board = move_t::next_board(board, move);
             side = -side;
         }
-        if (board.find('K') == std::npos) winner = -1;
-        else if (board.find('k') == std::npos) winner = 1;
+        if (board.find('K') == std::string::npos) winner = -1;
+        else if (board.find('k') == std::string::npos) winner = 1;
         for (auto& x : train_data) x.label.winner = winner;
         return train_data;
     }
