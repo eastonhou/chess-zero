@@ -6,6 +6,7 @@
 #include <set>
 #include <mutex>
 #include <numeric>
+#include "definitions.hpp"
 
 const int BASE = 100;
 const int GAMEOVER_THRESHOLD = 150 * BASE;
@@ -367,7 +368,6 @@ public:
 class MoveTransform {
 public:
 	typedef std::pair<int32_t, int32_t> pos2_t;
-	const static size_t action_size = 2086;
 public:
 	static int32_t move_to_id(const pos2_t& move) {
 		static auto _m2i = _compute_m2i();
@@ -379,17 +379,17 @@ public:
 	}
 	static std::vector<float> onehot(const pos2_t& move) {
 		static auto _m2i = _compute_m2i();
-		std::vector<float> action_probs(action_size, 0);
+		std::vector<float> action_probs(ACTION_SIZE, 0);
 		action_probs[_m2i[move]] = 1;
 		return action_probs;
 	}
-	static std::array<int, action_size> rotate_indices() {
+	static std::array<int, ACTION_SIZE> rotate_indices() {
 		static auto result = _compute_rotate_indices();
 		return result;
 	}
-	static std::array<float, action_size> map_probs(const std::vector<pos2_t>& moves, const std::vector<float>& probs) {
+	static std::array<float, ACTION_SIZE> map_probs(const std::vector<pos2_t>& moves, const std::vector<float>& probs) {
 		static auto _m2i = _compute_m2i();
-		std::array<float, action_size> result = {0};
+		std::array<float, ACTION_SIZE> result = {0};
 		int i = 0;
 		for (auto move : moves) {
 			auto id = _m2i[move];
@@ -447,10 +447,10 @@ private:
 		}
 		return i2m;
 	}
-	static std::array<int, action_size> _compute_rotate_indices() {
+	static std::array<int, ACTION_SIZE> _compute_rotate_indices() {
 		static auto _i2m = _compute_i2m();
 		static auto _m2i = _compute_m2i();
-		std::array<int, action_size> result = {0};
+		std::array<int, ACTION_SIZE> result = {0};
 		for (auto it = _i2m.begin(); it != _i2m.end(); ++it) {
 			auto id = it->first;
 			auto move = it->second;

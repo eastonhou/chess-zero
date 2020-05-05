@@ -16,8 +16,6 @@ private:
 	torch::nn::Sequential _value_projection;
 
 public:
-	typedef std::tuple<std::string, int> record_t;
-	typedef std::tuple<std::array<float, MoveTransform::action_size>, int> target_t;
 	model_t(int num_residual_blocks=7, int embedding_dim=80)
 	: _embeddings(torch::nn::Embedding(torch::nn::EmbeddingOptions(15, embedding_dim).padding_idx(0)))
 	, _input_layer(_make_input_module(embedding_dim))
