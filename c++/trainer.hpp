@@ -16,6 +16,7 @@ public:
         while (true) {
             auto train_data = play();
             _model->update_policy(_optimizer, train_data);
+            save_model(_model);
         }
     }
     std::list<train_record_t> play(int nocapture=60) {

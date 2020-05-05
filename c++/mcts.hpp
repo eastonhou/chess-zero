@@ -136,8 +136,10 @@ public:
             records.push_back({x->board, x->side});
         }
         auto result = model->forward_some(records);
-        auto probs = std::get<0>(result).exp().cpu().data_ptr<float>();
-        auto values = std::get<1>(result).cpu().data_ptr<float>();
+        auto tprobs = std::get<0>(result).exp().cpu();
+        auto tvalues = std::get<1>(result).cpu();
+        auto probs = tprobs.contiguous().data_ptr<float>();
+        auto values = tvalues.contiguous().data_ptr<float>();
         for (size_t k = 0; k < nonterminals.size(); ++k) {
             auto& node = nonterminals[k];
             auto moves = move_t::next_steps(node->board, node->side == 1);

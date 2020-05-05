@@ -216,3 +216,7 @@ private:
 };
 
 TORCH_MODULE_IMPL(model_t, model_imply_t);
+
+void save_model(model_t model, const std::string& path="checkpoints/model.pt") {
+	torch::save(model, path);
+}

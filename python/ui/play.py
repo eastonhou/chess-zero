@@ -10,7 +10,7 @@ class Controller:
     def __init__(self, ui):
         ui.background.mousePressEvent = self.background_click
         self.ui = ui
-        self.model = models.Model()
+        self.model = models.Model().eval()
         self.start()
 
     def start(self):
