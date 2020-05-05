@@ -1,14 +1,16 @@
+#include <iostream>
 #include <torch/torch.h>
 #include "models.hpp"
 #include "rules.hpp"
 #include "mcts.hpp"
-
 class Trainer {
 private:
     model_t _model;
     std::shared_ptr<torch::optim::Optimizer> _optimizer;
 public:
     Trainer(): _model(), _optimizer(_model.create_optimizer()) {
+        auto device = torch::Device(c10::DeviceType::CUDA);
+        _model.to(device);
     }
     void run() {
         while (true) {
@@ -32,6 +34,8 @@ public:
             train_data.push_back(train_record);
             if (board[move.to] != ' ') nocapture_counter = 0;
             else if (++nocapture_counter >= nocapture) break;
+            std::cout << (side == 1 ? "RED" : "BLACK") << " MOVE: "
+                << "(" << move.from << "," << move.to << ")" << std::endl;
             board = move_t::next_board(board, move);
             side = -side;
         }

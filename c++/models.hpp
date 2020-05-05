@@ -8,7 +8,7 @@
 #include "definitions.hpp"
 #include "rules.hpp"
 #include "utils.hpp"
-class model_t : torch::nn::Module {
+class model_t : public torch::nn::Module {
 private:
 	torch::nn::Embedding _embeddings;
 	torch::nn::Sequential _input_layer;

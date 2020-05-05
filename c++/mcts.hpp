@@ -34,7 +34,7 @@ public:
         return std::max(c*sqrt((float)parent->N)/(1+N), P);
     }
     nodeptr select() {
-        float best = -100000;
+        float best = -1E18;
         nodeptr node = nullptr;
         for (auto& child : children) {
             auto score = child->Q() + child->U();
@@ -43,6 +43,7 @@ public:
                 node = child;
             }
         }
+        assert(node != nullptr);
         return node;
     }
     nodeptr select_to_leaf() {
@@ -135,8 +136,8 @@ public:
             records.push_back({x->board, x->side});
         }
         auto result = model.forward_some(records);
-        auto probs = std::get<0>(result).exp().data_ptr<float>();
-        auto values = std::get<1>(result).data_ptr<float>();
+        auto probs = std::get<0>(result).exp().cpu().data_ptr<float>();
+        auto values = std::get<1>(result).cpu().data_ptr<float>();
         for (size_t k = 0; k < nonterminals.size(); ++k) {
             auto& node = nonterminals[k];
             auto moves = move_t::next_steps(node->board, node->side == 1);
