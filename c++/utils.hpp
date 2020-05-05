@@ -1,3 +1,4 @@
+#pragma once
 #include <algorithm>
 #include <random>
 #include <time.h>
@@ -17,4 +18,11 @@ inline std::vector<float> random_normal(size_t n, float mean=0, float stdev=1) {
         x = distribution(generator);
     }
     return result;
+}
+
+template<class Container, class IndicesType>
+inline void reorder(const Container& source, const IndicesType& indices, Container& target) {
+    for (size_t k = 0; k < source.size(); ++k) {
+        target[k] = source[indices[k]];
+    }
 }

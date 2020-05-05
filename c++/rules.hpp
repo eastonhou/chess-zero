@@ -382,11 +382,12 @@ public:
 		action_probs[_m2i[move]] = 1;
 		return action_probs;
 	}
-	static std::array<int, ACTION_SIZE> rotate_indices() {
+	static std::vector<int> rotate_indices() {
 		static auto result = _compute_rotate_indices();
 		return result;
 	}
-	static std::array<float, ACTION_SIZE> map_probs(const std::vector<action_t>& moves, const std::vector<float>& probs) {
+	template<template<class> class Cty0, template<class> class Cty1>
+	static action_probs_t map_probs(const Cty0<action_t>& moves, const Cty1<float>& probs) {
 		static auto _m2i = _compute_m2i();
 		std::array<float, ACTION_SIZE> result = {0};
 		int i = 0;
@@ -446,10 +447,10 @@ private:
 		}
 		return i2m;
 	}
-	static std::array<int, ACTION_SIZE> _compute_rotate_indices() {
+	static std::vector<int> _compute_rotate_indices() {
 		static auto _i2m = _compute_i2m();
 		static auto _m2i = _compute_m2i();
-		std::array<int, ACTION_SIZE> result = {0};
+		std::vector<int> result(ACTION_SIZE, 0);
 		for (auto it = _i2m.begin(); it != _i2m.end(); ++it) {
 			auto id = it->first;
 			auto move = it->second;

@@ -14,8 +14,8 @@ public:
     std::string board;
     int side;
     nodeptr parent;
-    std::list<nodeptr> children;
-    std::list<action_t> moves;
+    std::vector<nodeptr> children;
+    std::vector<action_t> moves;
     float P = 0;
     float W = 0;
     int N = 0;
@@ -31,7 +31,7 @@ public:
         else return N > 0 ? (W / N * -side) : 0;
     }
     float U(float c=0.5)const {
-        return std::max(c*sqrt(parent->N)/(1+N), P);
+        return std::max(c*sqrt((float)parent->N)/(1+N), P);
     }
     nodeptr select() {
         float best = -100000;
@@ -61,7 +61,7 @@ public:
             nodes.insert(node);
             if (node->terminal) break;
         }
-        for (auto& node : nodes) node->backup(node.side*1000, -1);
+        for (auto& node : nodes) node->backup(node->side*1000, -1);
         return nodes;
     }
     template<template<class> class Container>
@@ -69,8 +69,8 @@ public:
         this->moves = moves;
         float total_P = 0;
         for (auto& move : moves) {
-            auto board = rule_t::next_board(this->board, move);
-            auto child = std::make_ptr<node_t>(board, -this->side, this->shared_from_this());
+            auto board = move_t::next_board(this->board, move);
+            auto child = std::make_shared<node_t>(board, -this->side, this->shared_from_this());
             child->P = probs[MoveTransform::move_to_id(move)];
             total_P += child->P;
             this->children.push_back(child);
@@ -123,7 +123,7 @@ public:
         for (auto& node : nodes) {
             if (rule_t::gameover_position(node->board)) {
                 node->complete();
-                node->backup(-node.side);
+                node->backup(-node->side);
             }
             else {
                 nonterminals.push_back(node);
@@ -135,11 +135,12 @@ public:
             records.push_back({x->board, x->side});
         }
         auto result = model.forward_some(records);
-        auto probs = result._0.exp().to_vector();
-        auto values = result._1.to_vector();
+        auto probs = std::get<0>(result).exp().data_ptr<action_probs_t>();
+        auto values = std::get<1>(result).data_ptr<float>();
         for (size_t k = 0; k < nonterminals.size(); ++k) {
             auto& node = nonterminals[k];
             auto moves = move_t::next_steps(node->board, node->side == 1);
+            //action_probs_t _probs(&probs[k*ACTION_SIZE], &probs[(k+1)*ACTION_SIZE]);
             node->expand(moves, probs[k]);
             node->backup(values[k]);
         }
@@ -161,7 +162,7 @@ public:
         }
     }
     static std::tuple<action_t, action_probs_t> ponder(
-        model_t& model, const std::string& board, int side, int playouts=200, float keep=0.75) {
+        model_t& model, const std::string& board, int side, size_t playouts=200, float keep=0.75) {
         state_t state(board, side);
         for (size_t k = 0; k < playouts; ++k) {
             play_multiple(model, state, 64);
@@ -170,6 +171,6 @@ public:
         auto probs = state.statistics();
         auto move = select(state.root->moves, probs, keep);
         auto action_probs = MoveTransform::map_probs(state.root->moves, probs);
-        return move, action_probs;
+        return std::make_tuple(move, action_probs);
     }
 };

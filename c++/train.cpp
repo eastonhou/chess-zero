@@ -1,7 +1,7 @@
 #include "trainer.hpp"
 
 int main() {
-    Trainer trainer();
+    Trainer trainer;
     trainer.run();
     return 0;
 }

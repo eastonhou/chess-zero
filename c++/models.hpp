@@ -2,10 +2,12 @@
 #include <torch/torch.h>
 #include <torch/nn.h>
 #include <list>
+#include <vector>
+#include <array>
 #include <string>
 #include "definitions.hpp"
 #include "rules.hpp"
-
+#include "utils.hpp"
 class model_t : torch::nn::Module {
 private:
 	torch::nn::Embedding _embeddings;
@@ -37,12 +39,12 @@ public:
 	std::tuple<torch::Tensor, torch::Tensor> forward_some(const Container<record_t>& records) {
 		auto inputs = _convert_inputs(records);
 		auto results = forward(inputs);
-		for (size_t k = 0; k < inputs.size(0); ++k) {
+		for (int k = 0; k < inputs.size(0); ++k) {
 			auto side = records[k].side;
-			auto& p = results._0;
-			auto& v = results._1;
+			auto& p = std::get<0>(results);
+			auto& v = std::get<1>(results);
 			if (side == -1) {
-				p[k] = p[k, MoveTransform::rotate_indices()];
+				p[k] = p[k][tensor(MoveTransform::rotate_indices())];
 				v[k] = -v[k];
 			}
 		}
@@ -51,8 +53,8 @@ public:
 	std::tuple<torch::Tensor, torch::Tensor> forward(const torch::Tensor& inputs) {
 		auto embeddings = _embeddings(inputs).permute({0, 3, 1, 2}).contiguous();
 		auto x = _input_layer->forward(embeddings);
-		for (auto& m : _residual_blocks) {
-			auto a = m->forward(x);
+		for (auto& m : *_residual_blocks) {
+			auto a = m->as<torch::nn::Sequential>()->forward(x);
 			x = torch::nn::functional::relu(a + x);
 		}
 		auto p = _run_head(_policy_head, _policy_projection, x);
@@ -64,29 +66,30 @@ public:
 		std::shared_ptr<torch::optim::Optimizer> optimizer,
 		const Container<train_record_t>& records,
 		size_t epochs=10) {
-		std::list<record_t> inputs;
-		std::list<label_t> labels;
-		std::list<int> sides;
+		std::vector<record_t> input_records;
+		std::vector<label_t> labels;
+		std::vector<int> sides;
 		for (auto& x : records) {
-			inputs.push_back(x.input);
+			input_records.push_back(x.input);
 			labels.push_back(x.label);
 			sides.push_back(x.input.side);
 		}
+		auto inputs = _convert_inputs(input_records);
 		auto targets = _convert_targets(labels, sides);
 		float tloss = 0;
 		for (size_t _e = 0; _e < epochs; ++_e) {
 			auto logits = forward(inputs);
-			auto tp = tensor(targets._0);
-			auto tv = tensor(targets._1);
-			ploss = (-logits._0*tp).sum()
-			vloss = torch::nn::functional::mse_loss(logits._1, tv);
+			auto tp = tensor(std::get<0>(targets));
+			auto tv = tensor(std::get<1>(targets)).to(torch::ScalarType::Float);
+			auto ploss = (-std::get<0>(logits)*tp).sum();
+			auto vloss = torch::nn::functional::mse_loss(std::get<1>(logits), tv);
 			auto loss = ploss + vloss;
-			optimizer.zero_grad();
+			optimizer->zero_grad();
 			loss.backward();
 			optimizer->step();
-			tloss += loss.item();
+			tloss += loss.item().toFloat();
 		}
-		std::cout << "LOSS: " << tloss/inputs.size() << std::endl;
+		std::cout << "LOSS: " << tloss/inputs.size(0) << std::endl;
 	}
 	std::shared_ptr<torch::optim::Optimizer> create_optimizer() {
 		auto optimizer = std::make_shared<torch::optim::Adam>(parameters());
@@ -94,22 +97,25 @@ public:
 	}
 private:
 	template<template<class> class Container>
-	std::tuple<std::vector<std::array<int, 90>>, std::vector<float>> _convert_targets(
+	std::tuple<std::vector<std::vector<float>>, std::vector<float>> _convert_targets(
 		const Container<label_t>& labels, const Container<int> sides) {
-		std::list<std::array<float, MoveTransform::action_size>> ps;
+		std::vector<std::vector<float>> ps;
 		std::vector<float> vs;
 		for (size_t k = 0; k < labels.size(); ++k) {
 			if (sides[k] == -1) {
-				auto& p = labels[k]._0;
-				auto& v = labels[k]._1;
-				ps.push_back(p[MoveTransform::rotate_indices()]);
+				auto& p = labels[k].action_probs;
+				auto& v = labels[k].winner;
+				action_probs_t reversed_p;
+				reorder(p, MoveTransform::rotate_indices(), reversed_p);
+				ps.push_back(std::vector<float>(reversed_p.begin(), reversed_p.end()));
 				vs.push_back(-v);
 			}
 			else {
-				ps.push_back(labels[k]._0);
-				vs.push_back(labels[k]._1);
+				auto& p = labels[k].action_probs;
+				ps.push_back(std::vector<float>(p.begin(), p.end()));
+				vs.push_back(labels[k].winner);
 			}
-			return {ps, vs};
+			return std::make_tuple(ps, vs);
 		}
 	}
 	template<template<class> class Container>
@@ -117,16 +123,17 @@ private:
 		static std::map<char, int> piece_map = {
 			{' ', 0}, {'r', 1}, {'n', 2}, {'b', 3}, {'a', 4}, {'k', 5}, {'c', 6}, {'p', 7},
 			{'R', 8}, {'N', 9}, {'B', 10}, {'A', 11}, {'K', 12}, {'C', 13}, {'P', 14}
-		}
-		std::vector<std::array<int, 90>> results(boards.size());
-		for (size_t k = 0; k < records.size(); ++k) {
-			auto& record = records[k];
-			auto side = record._1;
-			auto board = side == 1 ? record._0 : rule_t::rotate_board(record._0);
+		};
+		std::vector<std::vector<int>> results(records.size(), std::vector<int>(90));
+		size_t k = 0;
+		for (auto& record : records) {
+			auto side = record.side;
+			auto board = side == 1 ? record.board : rule_t::rotate_board(record.board);
 			auto& data = results[k];
 			for (size_t i = 0; i < 90; ++i) {
 				data[i] = piece_map[board[i]];
 			}
+			++k;
 		}
 		auto inputs = tensor(results).reshape({10, 9});
 		return inputs;
@@ -156,8 +163,8 @@ private:
 private:
 	template<typename Head, typename Projection>
 	torch::Tensor _run_head(Head& head, Projection& projection, const torch::Tensor& values) {
-		auto x = head->forward(values).reshape(values.size(0), -1);
-		auto y = projection(x);
+		auto x = head->forward(values).reshape({values.size(0), -1});
+		auto y = projection->forward(x);
 		return y;
 	}
 	torch::nn::Sequential _make_residual_block() {
@@ -208,6 +215,11 @@ private:
 };
 
 template<>
-torch::Tensor model_t::tensor<torch::Tensor>(const torch::Tensor& values) {
+torch::Tensor model_t::tensor(const torch::Tensor& values) {
 	return values.to(c10::TensorOptions(device()));
 }
+/*
+template<typename Ty, size_t N>
+torch::Tensor model_t::tensor(const std::array<Ty, N>& values) {
+	return torch::tensor(std::vector<Ty>(values.begin(), values.end()), device());
+}*/
