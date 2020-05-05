@@ -24,7 +24,7 @@ class Model(nn.Module):
         return p[0], v[0]
 
     def forward_some(self, batch_board_side):
-        inputs = self.convert_records(batch_board_side)
+        inputs = self.convert_inputs(batch_board_side)
         p, v = self.forward(inputs)
         for i,(_,side) in enumerate(batch_board_side):
             if side == -1:
@@ -43,7 +43,7 @@ class Model(nn.Module):
         v = v.view(-1)
         return p, v
 
-    def convert_records(self, records):
+    def convert_inputs(self, records):
         def _convert_record(board, side):
             if side == -1:
                 board = rotate_board(board)
@@ -56,21 +56,21 @@ class Model(nn.Module):
         return inputs
 
     def convert_targets(self, targets, sides):
-        result = []
+        ps, vs = [], []
         for (p,v),s in zip(targets, sides):
             if s == -1:
                 p = p[MoveTransform.rotate_indices()]
                 v = -v
-            result.append((p,v))
-        return result
+            ps.append(p)
+            vs.append(v)
+        return ps, vs
 
     def update_policy(self, optimizer, train_data, epochs=10):
         records, targets = zip(*train_data)
         inputs = self.convert_records(records)
-        targets = self.convert_targets(targets, [x[1] for x in records])
+        tp, tv = self.convert_targets(targets, [x[1] for x in records])
         for _ in range(epochs):
             p, v = self.forward(inputs)
-            tp, tv = zip(*targets)
             tp, tv = self.tensor(tp), self.tensor(tv).float()
             ploss = (-p*tp).sum()
             vloss = nn.functional.mse_loss(v, tv)

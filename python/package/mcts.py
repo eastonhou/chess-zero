@@ -89,9 +89,6 @@ class State:
         probs = probs/probs.sum()
         return self.root.moves, probs
 
-    def _make_node(self, board, side):
-        return Node(board, side)
-
     def complete(self):
         self.terminal = True
 
