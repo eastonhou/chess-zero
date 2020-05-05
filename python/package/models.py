@@ -29,7 +29,7 @@ class Model(nn.Module):
         for i,(_,side) in enumerate(batch_board_side):
             if side == -1:
                 p[i] = p[i,MoveTransform.rotate_indices()]
-                v = -v
+                v[i] = -v[i]
         return p, v
 
     def forward(self, inputs):
