@@ -115,8 +115,8 @@ private:
 				ps.push_back(std::vector<float>(p.begin(), p.end()));
 				vs.push_back(labels[k].winner);
 			}
-			return std::make_tuple(ps, vs);
 		}
+		return std::make_tuple(ps, vs);
 	}
 	template<template<class> class Container>
 	torch::Tensor _convert_inputs(const Container<record_t>& records) {
@@ -124,7 +124,7 @@ private:
 			{' ', 0}, {'r', 1}, {'n', 2}, {'b', 3}, {'a', 4}, {'k', 5}, {'c', 6}, {'p', 7},
 			{'R', 8}, {'N', 9}, {'B', 10}, {'A', 11}, {'K', 12}, {'C', 13}, {'P', 14}
 		};
-		std::vector<std::vector<int>> results(records.size(), std::vector<int>(90));
+		std::vector<std::array<int, 90>> results(records.size());
 		size_t k = 0;
 		for (auto& record : records) {
 			auto side = record.side;
@@ -157,7 +157,7 @@ private:
 	}
 	template<typename Ty>
 	torch::Tensor tensor(const Ty& values) {
-		return torch::tensor(values, device());
+		return tensor_t<Ty>()(values, device());
 	}
 
 private:
@@ -213,11 +213,11 @@ private:
 		return torch::nn::ReLU(torch::nn::ReLUOptions(true));
 	}
 };
-
+/*
 template<>
 torch::Tensor model_t::tensor(const torch::Tensor& values) {
 	return values.to(c10::TensorOptions(device()));
-}
+}*/
 /*
 template<typename Ty, size_t N>
 torch::Tensor model_t::tensor(const std::array<Ty, N>& values) {

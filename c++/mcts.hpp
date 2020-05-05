@@ -135,13 +135,14 @@ public:
             records.push_back({x->board, x->side});
         }
         auto result = model.forward_some(records);
-        auto probs = std::get<0>(result).exp().data_ptr<action_probs_t>();
+        auto probs = std::get<0>(result).exp().data_ptr<float>();
         auto values = std::get<1>(result).data_ptr<float>();
         for (size_t k = 0; k < nonterminals.size(); ++k) {
             auto& node = nonterminals[k];
             auto moves = move_t::next_steps(node->board, node->side == 1);
-            //action_probs_t _probs(&probs[k*ACTION_SIZE], &probs[(k+1)*ACTION_SIZE]);
-            node->expand(moves, probs[k]);
+            action_probs_t _probs;
+            std::copy(&probs[k*ACTION_SIZE], &probs[(k+1)*ACTION_SIZE], _probs.begin());
+            node->expand(moves, _probs);
             node->backup(values[k]);
         }
     }
