@@ -44,7 +44,8 @@ public:
 			auto& p = std::get<0>(results);
 			auto& v = std::get<1>(results);
 			if (side == -1) {
-				p[k] = p[k][tensor(MoveTransform::rotate_indices())];
+				auto indices = tensor(MoveTransform::rotate_indices());
+				p[k] = p[k].index(indices);
 				v[k] = -v[k];
 			}
 		}
@@ -135,7 +136,7 @@ private:
 			}
 			++k;
 		}
-		auto inputs = tensor(results).reshape({10, 9});
+		auto inputs = tensor(results).reshape({-1, 10, 9});
 		return inputs;
 	}
 	torch::nn::Sequential _make_input_module(int embedding_dim) {

@@ -9,7 +9,7 @@
 #include "utils.hpp"
 
 typedef std::shared_ptr<class node_t> nodeptr;
-class node_t : std::enable_shared_from_this<node_t> {
+class node_t : public std::enable_shared_from_this<node_t> {
 public:
     std::string board;
     int side;
