@@ -332,7 +332,12 @@ public:
 		auto r = std::accumulate(board.begin(), board.end(), 0, [](int a, char b) { return a + score_map[b]; });
 		return r;
 	}
-
+	static bool gameover_position(const std::string& board) {
+		auto result = std::accumulate(board.begin(), board.end(), 0, [](int count, char c) {
+			return count + ((c == 'K' || c == 'k') ? 1 : 0);
+		});
+		return result < 2;
+	}
 	static char flip_side(char piece)
 	{
 		if (move_t::is_red(piece))
@@ -345,7 +350,17 @@ public:
 
 	static std::string rotate_board(const std::string& board)
 	{
-		return std::string(board.rbegin(), board.rend());
+		std::string result(board.rbegin(), board.rend());
+		for(auto& ch : result) {
+			ch = flip_side(ch);
+		}
+		return result;
+	}
+
+	static std::string initial_board() {
+		std::string board = "rnbakabnr##########c#####c#p#p#p#p#p##################P#P#P#P#P#C#####C##########RNBAKABNR";
+		std::replace(board.begin(), board.end(), '#', ' ');
+		return board;
 	}
 };
 
