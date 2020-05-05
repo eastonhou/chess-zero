@@ -7,7 +7,7 @@
     },
     "tasks": [
         {
-            "label": "build-linux",
+            "label": "build-linux-debug",
             "type": "shell",
             "command": "make",
             "args": [
@@ -22,7 +22,7 @@
             }
         },
         {
-            "label": "build-release",
+            "label": "build-linux-release",
             "type": "shell",
             "command": "make",
             "args": [

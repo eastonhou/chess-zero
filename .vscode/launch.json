@@ -15,14 +15,16 @@
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
-            //"preLaunchTask": "build-linux",
+            //"preLaunchTask": "build-linux-debug",
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for gdb",
                     "text": "-enable-pretty-printing",
                     "ignoreFailures": true
                 }
-            ]
+            ],
+            "envFile": "${workspaceFolder}/c++/.env",
+            "additionalSOLibSearchPath": "${workspaceFolder}/c++/libtorch/release/lib;"
         },
         {
             "name": "current",

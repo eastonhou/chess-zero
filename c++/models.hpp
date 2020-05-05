@@ -2,6 +2,7 @@
 #include <torch/torch.h>
 #include <torch/nn.h>
 #include <list>
+#include <string>
 #include "rules.hpp"
 
 class model_t : torch::nn::Module {
