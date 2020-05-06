@@ -1,7 +1,5 @@
 import numpy as np
-from package import rules
-from package.models import MoveTransform
-from package import utils
+from package import rules, utils, models
 
 class Node:
     def __init__(self, board, side, parent=None):
@@ -61,7 +59,7 @@ class Node:
         for move in moves:
             board = rules.next_board(self.board, move)
             child = Node(board, -self.side, self)
-            child.P = action_probs[MoveTransform.move_to_id(move)]
+            child.P = action_probs[rules.MoveTransform.move_to_id(move)]
             total_P += child.P
             self.children.append(child)
         for child in self.children:
@@ -122,7 +120,7 @@ def play_multiple(model, state, n):
         return
     timer.check('-select')
     records = [(x.board, x.side) for x in nonterminals]
-    logits, values = model.forward_some(records)
+    logits, values = models.forward_some(model, records)
     probs = logits.exp().detach().cpu().numpy()
     values = values.detach().cpu().numpy()
     timer.check('-model')

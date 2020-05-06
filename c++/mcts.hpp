@@ -135,7 +135,7 @@ public:
         for (auto& x : nonterminals) {
             records.push_back({x->board, x->side});
         }
-        auto result = model->forward_some(records);
+        auto result = forward_some(model, records);
         auto tprobs = std::get<0>(result).exp().cpu();
         auto tvalues = std::get<1>(result).cpu();
         auto probs = tprobs.contiguous().data_ptr<float>();

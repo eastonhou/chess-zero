@@ -1,16 +1,17 @@
 import numpy as np
-from package.models import Model
-from package import rules, mcts
+from package import models, rules, mcts
 
 class Trainer:
     def __init__(self):
-        self.model = Model().to(0)
-        self.optimizer = self.model.create_optimizer()
+        self.checkpoint_path = 'checkpoints/model.pt'
+        self.model = models.try_load_checkpoint(self.checkpoint_path).to(0)
+        self.optimizer = models.create_optimizer(self.model)
 
     def run(self):
         while True:
             train_data = self.play()
-            self.model.update_policy(self.optimizer, train_data)
+            models.update_policy(self.model, self.optimizer, train_data)
+            models.save_checkpoint(self.model, self.checkpoint_path)
 
     def play(self, nocapture=60):
         board = rules.initial_board()
