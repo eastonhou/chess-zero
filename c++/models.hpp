@@ -18,21 +18,25 @@ void save_model(model_t model, const std::string& path="checkpoints/model.pt") {
 	auto folder = fs::path(path).parent_path();
 	if (!fs::exists(folder))
 		fs::create_directory(folder);
-	//torch::jit::save(path, model);
 	model.save(path);
+	std::cout << "Saved to checkpoint." << std::endl;
 }
 
 model_t load_model(const std::string& path="checkpoints/model.pt") {
 	auto model = torch::jit::load(path);
-	std::cout << "loaded from checkpoint." << std::endl;
+	std::cout << "Loaded from checkpoint." << std::endl;
 	return model;
 }
 
 std::shared_ptr<torch::optim::Optimizer> create_optimizer(model_t model) {
 	std::vector<torch::Tensor> parameters;
-	for (const auto& parameter : model.parameters())
+	int64_t num_parameters;
+	for (const auto& parameter : model.parameters()) {
 		parameters.push_back(parameter);
+		num_parameters += parameter.numel();
+	}
 	auto optimizer = std::make_shared<torch::optim::Adam>(parameters);
+	std::cout << "Total Parameters: " << num_parameters << std::endl;
 	return std::static_pointer_cast<torch::optim::Optimizer>(optimizer);
 }
 
