@@ -1,6 +1,6 @@
 *.pyc
 .vscode/settings.json
-*.ckpt
+python/checkpoints
 c++/libtorch
 c++/bin
 c++/build
