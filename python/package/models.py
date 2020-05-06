@@ -67,7 +67,7 @@ class Model(nn.Module):
 
     def update_policy(self, optimizer, train_data, epochs=10):
         records, targets = zip(*train_data)
-        inputs = self.convert_records(records)
+        inputs = self.convert_inputs(records)
         tp, tv = self.convert_targets(targets, [x[1] for x in records])
         for _ in range(epochs):
             p, v = self.forward(inputs)
