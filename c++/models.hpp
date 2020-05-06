@@ -10,6 +10,7 @@
 #include "definitions.hpp"
 #include "rules.hpp"
 #include "utils.hpp"
+namespace fs = std::experimental::filesystem::v1;
 class model_imply_t : public torch::nn::Module {
 private:
 	torch::nn::Embedding _embeddings;
@@ -220,14 +221,14 @@ private:
 TORCH_MODULE_IMPL(model_t, model_imply_t);
 
 void save_model(model_t model, const std::string& path="checkpoints/model.pt") {
-	auto folder = std::experimental::filesystem::v1::path(path).parent_path();
-	if (!std::experimental::filesystem::v1::exists(folder))
-		std::experimental::filesystem::v1::create_directory(folder);
+	auto folder = fs::path(path).parent_path();
+	if (!fs::exists(folder))
+		fs::create_directory(folder);
 	torch::save(model, path);
 }
 
 void try_load_model(model_t model, const std::string& path="checkpoints/model.pt") {
-	if (!std::experimental::filesystem::v1::exists(path)) {
+	if (fs::exists(path)) {
 		torch::load(model, path);
 		std::cout << "loaded from checkpoint." << std::endl;
 	}
