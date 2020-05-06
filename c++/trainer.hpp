@@ -22,7 +22,7 @@ public:
             save_model(_model);
             auto elapsed = timer.check("epoch");
             std::cout
-                << "[" << epoch << "]"
+                << "\r[" << epoch << "]"
                 << " LOSS=" << loss
                 << " STEPS=" << train_data.size()
                 << " ELAPSE=" << elapsed
@@ -60,8 +60,6 @@ public:
         std::cout << "\r[" << step << "] " << side << ": " << "(" << move.from << "," << move.to << ")";
         if (capture != ' ')
             std::cout << " CAPTURE=" << capture;
-        std::cout << "        " << std::flush;
-        if (std::toupper(capture) == 'K')
-            std::cout << std::endl;
+        std::cout << "            " << std::flush;
     }
 };
