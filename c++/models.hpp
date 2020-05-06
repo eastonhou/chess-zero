@@ -220,14 +220,14 @@ private:
 
 TORCH_MODULE_IMPL(model_t, model_imply_t);
 
-void save_model(model_t model, const std::string& path="checkpoints/model.pt") {
+void save_model(model_t model, const std::string& path="checkpoints/model.ckpt") {
 	auto folder = fs::path(path).parent_path();
 	if (!fs::exists(folder))
 		fs::create_directory(folder);
 	torch::save(model, path);
 }
 
-void try_load_model(model_t model, const std::string& path="checkpoints/model.pt") {
+void try_load_model(model_t model, const std::string& path="checkpoints/model.ckpt") {
 	if (fs::exists(path)) {
 		torch::load(model, path);
 		std::cout << "loaded from checkpoint." << std::endl;
