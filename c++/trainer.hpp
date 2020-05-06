@@ -16,7 +16,7 @@ private:
 public:
     Trainer(): _model(load_model()), _optimizer(create_optimizer(_model)) {
         auto device = torch::Device(c10::DeviceType::CUDA);
-        _model.to(device);
+        _model.to(device, true);
     }
     void run() {
         std::cout << "Start training..." << std::endl;
@@ -26,7 +26,7 @@ public:
         concurrent_queue_t<train_record_t> queue([&](std::list<train_record_t>& queue){
             this->update(queue, timer);
         });
-        for (auto k = 0; k < 8; ++k) {
+        for (auto k = 0; k < 32; ++k) {
             auto worker = [k, &queue, this]{
                 std::cout << "Trainer " << k << " started." << std::endl;
                 while (true)
