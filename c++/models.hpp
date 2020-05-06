@@ -12,116 +12,6 @@
 #include "rules.hpp"
 #include "utils.hpp"
 namespace fs = std::experimental::filesystem::v1;
-/*
-class model_imply_t : public torch::nn::Module {
-private:
-	torch::nn::Embedding _embeddings;
-	torch::nn::Sequential _input_layer;
-	torch::nn::ModuleList _residual_blocks;
-	torch::nn::Sequential _policy_head;
-	torch::nn::Sequential _policy_projection;
-	torch::nn::Sequential _value_head;
-	torch::nn::Sequential _value_projection;
-
-public:
-	model_imply_t(int num_residual_blocks=7, int embedding_dim=80)
-	: _embeddings(torch::nn::Embedding(torch::nn::EmbeddingOptions(15, embedding_dim).padding_idx(0)))
-	, _input_layer(_make_input_module(embedding_dim))
-	, _residual_blocks(_make_residual_blocks(num_residual_blocks))
-	, _policy_head(_make_policy_head())
-	, _policy_projection(_make_policy_projection())
-	, _value_head(_make_value_head())
-	, _value_projection(_make_value_projection()) {
-		register_module("embeddings", _embeddings);
-		register_module("input_layer", _input_layer);
-		register_module("residual_blocks", _residual_blocks);
-		register_module("policy_head", _policy_head);
-		register_module("policy_projection", _policy_projection);
-		register_module("value_head", _value_head);
-		register_module("value_projection", _value_projection);
-	}
-	std::tuple<torch::Tensor, torch::Tensor> forward(const torch::Tensor& inputs) {
-		auto embeddings = _embeddings(inputs).permute({0, 3, 1, 2}).contiguous();
-		auto x = _input_layer->forward(embeddings);
-		for (auto& m : *_residual_blocks) {
-			auto a = m->as<torch::nn::Sequential>()->forward(x);
-			x = torch::nn::functional::relu(a + x);
-		}
-		auto p = _run_head(_policy_head, _policy_projection, x);
-		auto v = _run_head(_value_head, _value_projection, x).view(-1);
-		return std::make_tuple(p, v);
-	}
-private:
-	torch::nn::Sequential _make_input_module(int embedding_dim) {
-		return torch::nn::Sequential(
-			_conv(embedding_dim, 128, 3),
-			torch::nn::BatchNorm2d(128),
-			torch::nn::ReLU(torch::nn::ReLUOptions(true))
-		);
-	}
-	torch::nn::ModuleList _make_residual_blocks(int num_residual_blocks) {
-		torch::nn::ModuleList blocks;
-		for (int k = 0; k < num_residual_blocks; ++k) {
-			blocks->push_back(_make_residual_block());
-		}
-		return blocks;
-	}
-private:
-	template<typename Head, typename Projection>
-	torch::Tensor _run_head(Head& head, Projection& projection, const torch::Tensor& values) {
-		auto x = head->forward(values).reshape({values.size(0), -1});
-		auto y = projection->forward(x);
-		return y;
-	}
-	torch::nn::Sequential _make_residual_block() {
-		return torch::nn::Sequential(
-			_conv(128, 128, 3),
-			torch::nn::BatchNorm2d(128),
-			torch::nn::ReLU(torch::nn::ReLUOptions(true)),
-			_conv(128, 128, 3),
-			torch::nn::BatchNorm2d(128)
-		);
-	}
-	torch::nn::Sequential _make_policy_head() {
-		return torch::nn::Sequential(
-			_conv(128, 2, 1),
-			torch::nn::BatchNorm2d(2),
-			_relu()
-		);
-	}
-	torch::nn::Sequential _make_policy_projection() {
-		return torch::nn::Sequential(
-			torch::nn::Linear(180, ACTION_SIZE),
-			torch::nn::LogSoftmax(-1)
-		);
-	}
-	torch::nn::Sequential _make_value_head() {
-		return torch::nn::Sequential(
-			_conv(128, 1, 1),
-			torch::nn::BatchNorm2d(1),
-			_relu()
-		);
-	}
-	torch::nn::Sequential _make_value_projection() {
-		return torch::nn::Sequential(
-			torch::nn::Linear(90, 256),
-			_relu(),
-			torch::nn::Linear(256, 1),
-			torch::nn::Tanh()
-		);
-	}
-	torch::nn::Conv2d _conv(int in_channels, int out_channels, int kernel_size) {
-		auto options = torch::nn::Conv2dOptions(in_channels, out_channels, kernel_size)
-			.stride(1).padding(kernel_size / 2);
-		return torch::nn::Conv2d(options);
-	}
-	torch::nn::ReLU _relu() {
-		return torch::nn::ReLU(torch::nn::ReLUOptions(true));
-	}
-};
-
-TORCH_MODULE_IMPL(model_t, model_imply_t);
-*/
 typedef torch::jit::script::Module model_t;
 
 void save_model(model_t model, const std::string& path="checkpoints/model.pt") {
@@ -138,15 +28,16 @@ model_t load_model(const std::string& path="checkpoints/model.pt") {
 }
 
 std::shared_ptr<torch::optim::Optimizer> create_optimizer(model_t model) {
-	auto pmlist = model.parameters();
-	std::vector<torch::optim::OptimizerParamGroup> parameters(pmlist.begin(), pmlist.end()); 
-	auto optimizer = std::make_shared<torch::optim::Adam>(model.parameters());
+	std::vector<torch::Tensor> parameters;
+	for (const auto& parameter : model.parameters())
+		parameters.push_back(parameter);
+	auto optimizer = std::make_shared<torch::optim::Adam>(parameters);
 	return std::static_pointer_cast<torch::optim::Optimizer>(optimizer);
 }
 
 torch::Device model_device(model_t model) {
-	return torch::Device(torch::DeviceType::CUDA);
-	//return model.parameters().begin()->device();
+	const auto& first = *model.parameters().begin();
+	return first.device();
 }
 
 template<typename Ty>

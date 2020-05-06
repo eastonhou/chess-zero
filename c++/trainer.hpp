@@ -35,7 +35,7 @@ public:
             train_data.push_back(train_record);
             if (board[move.to] != ' ') nocapture_counter = 0;
             else if (++nocapture_counter >= nocapture) break;
-            print_move(board, move);
+            //print_move(board, move);
             board = move_t::next_board(board, move);
             side = -side;
         }
