@@ -1,6 +1,6 @@
 import numpy as np
 from package.models import Model
-from package import rules, mcts
+from package import rules, mcts, utils
 
 class Trainer:
     def __init__(self):
@@ -8,9 +8,12 @@ class Trainer:
         self.optimizer = self.model.create_optimizer()
 
     def run(self):
-        while True:
+        timer = utils.Timer()
+        for epoch in range(100000):
             train_data = self.play()
-            self.model.update_policy(self.optimizer, train_data)
+            loss = self.model.update_policy(self.optimizer, train_data)
+            elapsed = timer.check()
+            print(f'[{epoch}] LOSS={loss:>.4F} STEPS={len(train_data)} ELAPSE={elapsed:>.0F}')
 
     def play(self, nocapture=60):
         board = rules.initial_board()

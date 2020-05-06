@@ -143,13 +143,10 @@ def select(moves, probs, keep):
 
 def ponder(model, board, side, playouts=200, keep=0.75):
     state = State(board, side)
-    timer = utils.Timer()
     for _ in range(playouts):
         play_multiple(model, state, 64)
-        timer.check('ponder.step', count=1)
         if state.terminal:
             break
-    timer.print()
     moves, probs = state.statistics()
     move = select(moves, probs, keep)
     action_probs = rules.MoveTransform.map_probs(moves, probs)

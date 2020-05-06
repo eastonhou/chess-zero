@@ -70,6 +70,7 @@ class Model(nn.Module):
         inputs = self.convert_inputs(records)
         tp, tv = self.convert_targets(targets, [x[1] for x in records])
         tp, tv = self.tensor(tp), self.tensor(tv).float()
+        tloss = 0
         for _ in range(epochs):
             p, v = self.forward(inputs)
             ploss = (-p*tp).sum()
@@ -78,8 +79,9 @@ class Model(nn.Module):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-        print(f'LOSS: {loss.div(inputs.shape[0]).item()}')
+            tloss += loss.item()
         self.save_checkpoint(__class__.__default_checkpoint__)
+        return tloss/len(train_data)/epochs
 
     def save_checkpoint(self, path):
         ckpt = {
