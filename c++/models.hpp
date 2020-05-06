@@ -24,6 +24,7 @@ void save_model(model_t model, const std::string& path="checkpoints/model.pt") {
 
 model_t load_model(const std::string& path="checkpoints/model.pt") {
 	auto model = torch::jit::load(path);
+	std::cout << "loaded from checkpoint." << std::endl;
 	return model;
 }
 
