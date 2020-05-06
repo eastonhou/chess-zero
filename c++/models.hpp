@@ -93,7 +93,7 @@ public:
 			optimizer->step();
 			tloss += loss.item().toFloat();
 		}
-		std::cout << "LOSS: " << tloss/inputs.size(0) << std::endl;
+		std::cout << "LOSS: " << tloss/inputs.size(0)/epochs << std::endl;
 	}
 	std::shared_ptr<torch::optim::Optimizer> create_optimizer() {
 		auto optimizer = std::make_shared<torch::optim::Adam>(parameters());
