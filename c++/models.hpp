@@ -56,6 +56,8 @@ std::tuple<torch::Tensor, torch::Tensor> _convert_outputs(torch::jit::IValue val
 
 template<template<class> class Container>
 std::tuple<torch::Tensor, torch::Tensor> forward_some(model_t model, const Container<record_t>& records) {
+	torch::NoGradGuard no_grad;
+	model.eval();
 	auto device = model_device(model);
 	auto inputs = _convert_inputs(records, device);
 	auto results = _convert_outputs(model.forward(inputs));
@@ -136,6 +138,7 @@ float update_policy(
 	auto inputs = _convert_inputs(input_records, device);
 	auto targets = _convert_targets(labels, sides);
 	float tloss = 0;
+	model.train();
 	for (size_t _e = 0; _e < epochs; ++_e) {
 		auto logits = _convert_outputs(model.forward(inputs));
 		auto tp = tensor(std::get<0>(targets), device);
