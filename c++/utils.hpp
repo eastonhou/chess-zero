@@ -3,6 +3,8 @@
 #include <random>
 #include <map>
 #include <ctime>
+#include <functional>
+#include <mutex>
 #include <torch/torch.h>
 
 template<class ForwardIterator>
@@ -83,5 +85,22 @@ public:
         for (auto kv : _timers()) {
             std::cout << kv.first << ": " << kv.second << std::endl;
         }
+    }
+};
+
+template<typename Ty>
+class async_queue_t {
+private:
+    std::list<Ty> _queue;
+    std::mutex _mutex;
+    std::function<void(decltype(_queue)&)> _callback;
+public:
+    template<typename callback_t>
+    async_queue_t(callback_t callback):_callback(callback) {}
+    template<template<class> class Cty>
+    void put(const Cty<Ty>& records) {
+        std::unique_lock<std::mutex> lock(_mutex);
+        _queue.insert(_queue.end(), records.begin(), records.end());
+        _callback(_queue);
     }
 };

@@ -7,12 +7,18 @@
 #include <array>
 #include <string>
 #include <iostream>
+#include <mutex>
 #include <experimental/filesystem>
 #include "definitions.hpp"
 #include "rules.hpp"
 #include "utils.hpp"
 namespace fs = std::experimental::filesystem::v1;
 typedef torch::jit::script::Module model_t;
+
+std::mutex& _model_mutex() {
+	static std::mutex mutex;
+	return mutex;
+}
 
 void save_model(model_t model, const std::string& path="checkpoints/model.pt") {
 	auto folder = fs::path(path).parent_path();
@@ -46,8 +52,13 @@ template<typename Ty>
 torch::Tensor tensor(const Ty& values, const c10::Device& device) {
 	return tensor_t<Ty>()(values, device);
 }
-
-std::tuple<torch::Tensor, torch::Tensor> _convert_outputs(torch::jit::IValue values) {
+template<typename Input>
+std::tuple<torch::Tensor, torch::Tensor> _safe_forward(model_t model, const Input& inputs) {
+	torch::IValue values;
+	{
+		std::unique_lock<std::mutex> lock(_model_mutex());
+		values = model.forward(inputs);
+	}
 	auto tuple = values.toTuple();
 	auto ps = tuple->elements()[0].toTensor();
 	auto vs = tuple->elements()[1].toTensor();
@@ -58,7 +69,7 @@ template<template<class> class Container>
 std::tuple<torch::Tensor, torch::Tensor> forward_some(model_t model, const Container<record_t>& records) {
 	auto device = model_device(model);
 	auto inputs = _convert_inputs(records, device);
-	auto results = _convert_outputs(model.forward(inputs));
+	auto results = _safe_forward(model, inputs);
 	for (size_t k = 0; k < records.size(); ++k) {
 		auto side = records[k].side;
 		auto& p = std::get<0>(results);
@@ -137,7 +148,7 @@ float update_policy(
 	auto targets = _convert_targets(labels, sides);
 	float tloss = 0;
 	for (size_t _e = 0; _e < epochs; ++_e) {
-		auto logits = _convert_outputs(model.forward(inputs));
+		auto logits = _safe_forward(model, inputs);
 		auto tp = tensor(std::get<0>(targets), device);
 		auto tv = tensor(std::get<1>(targets), device).to(torch::ScalarType::Float);
 		auto probs = std::get<0>(logits);
@@ -145,9 +156,12 @@ float update_policy(
 		auto ploss = (-probs*tp).sum();
 		auto vloss = torch::nn::functional::mse_loss(values, tv);
 		auto loss = ploss + vloss;
-		optimizer->zero_grad();
-		loss.backward();
-		optimizer->step();
+		{
+			optimizer->zero_grad();
+			std::unique_lock<std::mutex> lock(_model_mutex());
+			loss.backward();
+			optimizer->step();
+		}
 		tloss += loss.item().toFloat();
 	}
 	return tloss/input_records.size()/epochs;

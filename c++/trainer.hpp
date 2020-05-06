@@ -1,5 +1,8 @@
 #include <iostream>
 #include <torch/torch.h>
+#include <future>
+#include <list>
+#include <thread>
 #include "utils.hpp"
 #include "models.hpp"
 #include "rules.hpp"
@@ -8,26 +11,45 @@ class Trainer {
 private:
     model_t _model;
     std::shared_ptr<torch::optim::Optimizer> _optimizer;
+    int _epoch = 0;
 public:
     Trainer(): _model(load_model()), _optimizer(create_optimizer(_model)) {
         auto device = torch::Device(c10::DeviceType::CUDA);
         _model.to(device);
     }
     void run() {
-        std::cout << "Start training..." << std::endl;
+        std::list<std::thread> workers;
         xtimer_t timer;
-        for (auto epoch = 0;; ++epoch) {
-            auto train_data = play();
-            auto loss = update_policy(_model, _optimizer, train_data);
-            save_model(_model);
-            auto elapsed = timer.check("epoch");
-            std::cout
-                << "[" << epoch << "]"
-                << " LOSS=" << loss
-                << " STEPS=" << train_data.size()
-                << " ELAPSE=" << elapsed
-                << std::endl;
+        async_queue_t<train_record_t> queue([&](std::list<train_record_t>& queue){
+            this->update(queue, timer);
+        });
+        for (auto k = 0; k < 32; ++k) {
+            auto worker = [k, &queue, this]{
+                std::cout << "Trainer " << k << " started." << std::endl;
+                while (true)
+                    queue.put(play());
+            };
+            workers.push_back(std::thread(worker));
         }
+        for(auto& worker : workers) worker.join();
+    }
+    void update(std::list<train_record_t>& queue, xtimer_t& timer) {
+        const size_t batch_size = 128;
+        if (queue.size() < batch_size) return;
+        std::list<train_record_t> batch;
+        for (size_t k = 0; k < batch_size; ++k) {
+            batch.push_back(queue.front());
+            queue.pop_front();
+        }
+        auto loss = update_policy(_model, _optimizer, batch);
+        save_model(_model);
+        auto elapsed = timer.check("epoch");
+        std::cout
+            << "[" << _epoch++ << "]"
+            << " LOSS=" << loss
+            << " STEPS=" << batch.size()
+            << " ELAPSE=" << elapsed
+            << std::endl;
     }
     std::list<train_record_t> play(int nocapture=60) {
         std::list<train_record_t> train_data;
