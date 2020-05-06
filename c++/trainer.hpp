@@ -9,6 +9,7 @@ private:
     std::shared_ptr<torch::optim::Optimizer> _optimizer;
 public:
     Trainer(): _model(), _optimizer(_model->create_optimizer()) {
+        try_load_model(_model);
         auto device = torch::Device(c10::DeviceType::CUDA);
         _model->to(device);
     }
@@ -35,8 +36,7 @@ public:
             train_data.push_back(train_record);
             if (board[move.to] != ' ') nocapture_counter = 0;
             else if (++nocapture_counter >= nocapture) break;
-            std::cout << (side == 1 ? "RED" : "BLACK") << " MOVE: "
-                << "(" << move.from << "," << move.to << ")" << std::endl;
+            print_move(board, move);
             board = move_t::next_board(board, move);
             side = -side;
         }
@@ -44,5 +44,13 @@ public:
         else if (board.find('k') == std::string::npos) winner = 1;
         for (auto& x : train_data) x.label.winner = winner;
         return train_data;
+    }
+    void print_move(const std::string& board, const action_t& move) {
+        std::string side = move_t::side(board[move.from]) == 1 ? "RED" : "BLACK";
+        char capture = board[move.to];
+        std::cout << side << " MOVE: " << "(" << move.from << "," << move.to << ")";
+        if (capture != ' ')
+            std::cout << " CAPTURE=" << capture;
+        std::cout << std::endl;
     }
 };

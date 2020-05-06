@@ -5,6 +5,8 @@
 #include <vector>
 #include <array>
 #include <string>
+#include <iostream>
+#include <experimental/filesystem>
 #include "definitions.hpp"
 #include "rules.hpp"
 #include "utils.hpp"
@@ -218,5 +220,15 @@ private:
 TORCH_MODULE_IMPL(model_t, model_imply_t);
 
 void save_model(model_t model, const std::string& path="checkpoints/model.pt") {
+	auto folder = std::experimental::filesystem::v1::path(path).parent_path();
+	if (!std::experimental::filesystem::v1::exists(folder))
+		std::experimental::filesystem::v1::create_directory(folder);
 	torch::save(model, path);
+}
+
+void try_load_model(model_t model, const std::string& path="checkpoints/model.pt") {
+	if (!std::experimental::filesystem::v1::exists(path)) {
+		torch::load(model, path);
+		std::cout << "loaded from checkpoint." << std::endl;
+	}
 }
