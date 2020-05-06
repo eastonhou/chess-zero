@@ -20,7 +20,7 @@ std::mutex& _model_mutex() {
 	return mutex;
 }
 
-void save_model(model_t model, const std::string& path="checkpoints/model.pt") {
+void save_model(model_t& model, const std::string& path="checkpoints/model.pt") {
 	auto folder = fs::path(path).parent_path();
 	if (!fs::exists(folder))
 		fs::create_directory(folder);
@@ -31,7 +31,7 @@ model_t load_model(const std::string& path="checkpoints/model.pt") {
 	return torch::jit::load(path);
 }
 
-std::shared_ptr<torch::optim::Optimizer> create_optimizer(model_t model) {
+std::shared_ptr<torch::optim::Optimizer> create_optimizer(model_t& model) {
 	std::vector<torch::Tensor> parameters;
 	int64_t num_parameters = 0;
 	for (const auto& parameter : model.parameters()) {
@@ -43,7 +43,7 @@ std::shared_ptr<torch::optim::Optimizer> create_optimizer(model_t model) {
 	return std::static_pointer_cast<torch::optim::Optimizer>(optimizer);
 }
 
-torch::Device model_device(model_t model) {
+torch::Device model_device(model_t& model) {
 	const auto& first = *model.parameters().begin();
 	return first.device();
 }
@@ -56,7 +56,7 @@ template<typename Input>
 std::tuple<torch::Tensor, torch::Tensor> _safe_forward(model_t model, const Input& inputs) {
 	torch::IValue values;
 	{
-		std::unique_lock<std::mutex> lock(_model_mutex());
+		//std::unique_lock<std::mutex> lock(_model_mutex());
 		values = model.forward(inputs);
 	}
 	auto tuple = values.toTuple();
@@ -66,7 +66,9 @@ std::tuple<torch::Tensor, torch::Tensor> _safe_forward(model_t model, const Inpu
 }
 
 template<template<class> class Container>
-std::tuple<torch::Tensor, torch::Tensor> forward_some(model_t model, const Container<record_t>& records) {
+std::tuple<torch::Tensor, torch::Tensor> forward_some(model_t& model, const Container<record_t>& records) {
+	torch::NoGradGuard no_grad;
+	model.eval();
 	auto device = model_device(model);
 	auto inputs = _convert_inputs(records, device);
 	auto results = _safe_forward(model, inputs);
@@ -131,7 +133,7 @@ std::vector<torch::jit::IValue> _convert_inputs(const Container<record_t>& recor
 
 template<template<class> class Container>
 float update_policy(
-	model_t model,
+	model_t& model,
 	std::shared_ptr<torch::optim::Optimizer> optimizer,
 	const Container<train_record_t>& records,
 	size_t epochs=10) {
@@ -147,6 +149,8 @@ float update_policy(
 	auto inputs = _convert_inputs(input_records, device);
 	auto targets = _convert_targets(labels, sides);
 	float tloss = 0;
+	torch::GradMode::set_enabled(true);
+	model.train();
 	for (size_t _e = 0; _e < epochs; ++_e) {
 		auto logits = _safe_forward(model, inputs);
 		auto tp = tensor(std::get<0>(targets), device);
@@ -158,7 +162,7 @@ float update_policy(
 		auto loss = ploss + vloss;
 		{
 			optimizer->zero_grad();
-			std::unique_lock<std::mutex> lock(_model_mutex());
+			//std::unique_lock<std::mutex> lock(_model_mutex());
 			loss.backward();
 			optimizer->step();
 		}

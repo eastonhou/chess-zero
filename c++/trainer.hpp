@@ -45,7 +45,7 @@ public:
             save_model(_model);
             auto elapsed = timer.check("epoch");
             std::cout
-                << "[" << _epoch++ << "]"
+                << "\r[" << _epoch++ << "]"
                 << " LOSS=" << loss
                 << " STEPS=" << batch.size()
                 << " ELAPSE=" << elapsed
@@ -68,7 +68,7 @@ public:
             train_data.push_back(train_record);
             if (board[move.to] != ' ') nocapture_counter = 0;
             else if (++nocapture_counter >= nocapture) break;
-            //print_move(board, move);
+            print_move(train_data.size(), board, move);
             board = move_t::next_board(board, move);
             side = -side;
         }
@@ -77,12 +77,19 @@ public:
         for (auto& x : train_data) x.label.winner = winner;
         return train_data;
     }
-    void print_move(const std::string& board, const action_t& move) {
+    void print_move(size_t step, const std::string& board, const action_t& move) {
         std::string side = move_t::side(board[move.from]) == 1 ? "RED" : "BLACK";
         char capture = board[move.to];
-        std::cout << side << " MOVE: " << "(" << move.from << "," << move.to << ")";
+        auto accumulator = [](int a, char b) {
+            if (b != ' ') ++a;
+            return a;
+        };
+        std::cout
+            << "\r[" << step << "] "
+            << side << "=(" << move.from << "," << move.to << ")"
+            << " #PIECES=" << std::accumulate(board.begin(), board.end(), 0, accumulator);
         if (capture != ' ')
             std::cout << " CAPTURE=" << capture;
-        std::cout << std::endl;
+        std::cout << "            " << std::flush;
     }
 };
