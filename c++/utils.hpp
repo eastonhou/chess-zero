@@ -1,7 +1,8 @@
 #pragma once
 #include <algorithm>
 #include <random>
-#include <time.h>
+#include <map>
+#include <ctime>
 #include <torch/torch.h>
 
 template<class ForwardIterator>
@@ -13,7 +14,7 @@ inline size_t argmax(ForwardIterator first, ForwardIterator last)
 inline std::vector<float> random_normal(size_t n, float mean=0, float stdev=1) {
     std::default_random_engine generator;
     std::normal_distribution<float> distribution(mean, stdev);
-    generator.seed(clock());
+    generator.seed(std::clock());
     std::vector<float> result(n);
     for (auto& x : result) {
         x = distribution(generator);
@@ -61,5 +62,26 @@ struct tensor_t<Cty0<std::array<T, N>>> {
             result.push_back(tensor_t<std::array<T, N>>()(v, device));
         }
         return torch::stack(result, 0);
+    }
+};
+
+class xtimer_t {
+    clock_t _time = std::clock();
+    static std::map<std::string, double>& _timers() {
+        static std::map<std::string, double> __timers;
+        return __timers;
+    }
+public:
+    double check(const std::string& name=std::string()) {
+        auto elapsed = std::clock() - _time;
+        auto secs = elapsed / (double)CLOCKS_PER_SEC;
+        _timers()[name] += secs;
+        _time += elapsed;
+        return secs;
+    }
+    static void print() {
+        for (auto kv : _timers()) {
+            std::cout << kv.first << ": " << kv.second << std::endl;
+        }
     }
 };

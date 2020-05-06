@@ -1,5 +1,6 @@
 #include <iostream>
 #include <torch/torch.h>
+#include "utils.hpp"
 #include "models.hpp"
 #include "rules.hpp"
 #include "mcts.hpp"
@@ -13,10 +14,18 @@ public:
         _model.to(device);
     }
     void run() {
-        while (true) {
+        std::cout << "Start training..." << std::endl;
+        xtimer_t timer;
+        for (auto epoch = 0;; ++epoch) {
             auto train_data = play();
-            update_policy(_model, _optimizer, train_data);
+            auto loss = update_policy(_model, _optimizer, train_data);
             save_model(_model);
+            auto elapsed = timer.check("epoch");
+            std::cout
+                << "[" << epoch << "]"
+                << " LOSS=" << loss
+                << " ELAPSE=" << elapsed
+                << std::endl;
         }
     }
     std::list<train_record_t> play(int nocapture=60) {

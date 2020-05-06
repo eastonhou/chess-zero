@@ -19,13 +19,10 @@ void save_model(model_t model, const std::string& path="checkpoints/model.pt") {
 	if (!fs::exists(folder))
 		fs::create_directory(folder);
 	model.save(path);
-	std::cout << "Saved to checkpoint." << std::endl;
 }
 
 model_t load_model(const std::string& path="checkpoints/model.pt") {
-	auto model = torch::jit::load(path);
-	std::cout << "Loaded from checkpoint." << std::endl;
-	return model;
+	return torch::jit::load(path);
 }
 
 std::shared_ptr<torch::optim::Optimizer> create_optimizer(model_t model) {
@@ -122,7 +119,7 @@ std::vector<torch::jit::IValue> _convert_inputs(const Container<record_t>& recor
 }
 
 template<template<class> class Container>
-void update_policy(
+float update_policy(
 	model_t model,
 	std::shared_ptr<torch::optim::Optimizer> optimizer,
 	const Container<train_record_t>& records,
@@ -153,5 +150,5 @@ void update_policy(
 		optimizer->step();
 		tloss += loss.item().toFloat();
 	}
-	std::cout << "LOSS: " << tloss/input_records.size()/epochs << std::endl;
+	return tloss/input_records.size()/epochs;
 }

@@ -10,7 +10,7 @@ class Controller:
     def __init__(self, ui):
         ui.background.mousePressEvent = self.background_click
         self.ui = ui
-        self.model = models.try_load_checkpoint('checkpoints/model.pt').eval()
+        self.model = models.try_load_checkpoint('checkpoints/model.pt').to(0).eval()
         self.start()
 
     def start(self):
