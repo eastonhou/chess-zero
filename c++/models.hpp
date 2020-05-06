@@ -138,6 +138,7 @@ float update_policy(
 	auto inputs = _convert_inputs(input_records, device);
 	auto targets = _convert_targets(labels, sides);
 	float tloss = 0;
+	torch::GradMode::set_enabled(true);
 	model.train();
 	for (size_t _e = 0; _e < epochs; ++_e) {
 		auto logits = _convert_outputs(model.forward(inputs));

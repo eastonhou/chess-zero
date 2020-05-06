@@ -57,7 +57,14 @@ public:
     void print_move(size_t step, const std::string& board, const action_t& move) {
         std::string side = move_t::side(board[move.from]) == 1 ? "RED" : "BLACK";
         char capture = board[move.to];
-        std::cout << "\r[" << step << "] " << side << ": " << "(" << move.from << "," << move.to << ")";
+        auto accumulator = [](int a, char b) {
+            if (b != ' ') ++a;
+            return a;
+        };
+        std::cout
+            << "\r[" << step << "] "
+            << side << "=(" << move.from << "," << move.to << ")"
+            << " #PIECES=" << std::accumulate(board.begin(), board.end(), 0, accumulator);
         if (capture != ' ')
             std::cout << " CAPTURE=" << capture;
         std::cout << "            " << std::flush;
