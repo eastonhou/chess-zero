@@ -1,6 +1,9 @@
 #include <iostream>
 #include <thread>
 #include <torch/torch.h>
+#include <future>
+#include <list>
+#include <thread>
 #include "utils.hpp"
 #include "models.hpp"
 #include "rules.hpp"
@@ -9,6 +12,7 @@ class Trainer {
 private:
     model_t _model;
     std::shared_ptr<torch::optim::Optimizer> _optimizer;
+    int _epoch = 0;
 public:
     Trainer(): _model(load_model()), _optimizer(create_optimizer(_model)) {
         auto device = torch::Device(c10::DeviceType::CUDA);
@@ -16,22 +20,42 @@ public:
     }
     void run() {
         std::cout << "Start training..." << std::endl;
-        run_worker();
+        std::list<std::thread> workers;
+        run_mcts_worker();
         xtimer_t timer;
-        for (auto epoch = 0;; ++epoch) {
-            auto train_data = play();
-            auto loss = update_policy(_model, _optimizer, train_data);
+        concurrent_queue_t<train_record_t> queue([&](std::list<train_record_t>& queue){
+            this->update(queue, timer);
+        });
+        for (auto k = 0; k < 8; ++k) {
+            auto worker = [k, &queue, this]{
+                std::cout << "Trainer " << k << " started." << std::endl;
+                while (true)
+                    queue.put(play());
+            };
+            workers.push_back(std::thread(worker));
+        }
+        for(auto& worker : workers) worker.join();
+    }
+    void update(std::list<train_record_t>& queue, xtimer_t& timer) {
+        const size_t batch_size = 128;
+        while (queue.size() >= batch_size) {
+            std::list<train_record_t> batch;
+            for (size_t k = 0; k < batch_size; ++k) {
+                batch.push_back(queue.front());
+                queue.pop_front();
+            }
+            auto loss = update_policy(_model, _optimizer, batch);
             save_model(_model);
             auto elapsed = timer.check("epoch");
             std::cout
-                << "\r[" << epoch << "]"
+                << "\r[" << _epoch++ << "]"
                 << " LOSS=" << loss
-                << " STEPS=" << train_data.size()
+                << " STEPS=" << batch.size()
                 << " ELAPSE=" << elapsed
                 << std::endl;
         }
     }
-    void run_worker() {
+    void run_mcts_worker() {
         static std::thread worker(&mcts_t::worker, std::ref(_model));
     }
     std::list<train_record_t> play(int nocapture=60) {

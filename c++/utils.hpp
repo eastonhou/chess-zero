@@ -3,6 +3,7 @@
 #include <random>
 #include <map>
 #include <ctime>
+#include <functional>
 #include <mutex>
 #include <torch/torch.h>
 
@@ -89,7 +90,6 @@ public:
     }
 };
 
-
 template<typename T>
 class async_queue_t {
     std::condition_variable cond;
@@ -137,5 +137,22 @@ public:
         }
         lock.unlock();
         cond.notify_all();
+    }
+};
+
+template<typename Ty>
+class concurrent_queue_t {
+private:
+    std::list<Ty> _queue;
+    std::mutex _mutex;
+    std::function<void(decltype(_queue)&)> _callback;
+public:
+    template<typename callback_t>
+    concurrent_queue_t(callback_t callback):_callback(callback) {}
+    template<template<class> class Cty>
+    void put(const Cty<Ty>& records) {
+        std::unique_lock<std::mutex> lock(_mutex);
+        _queue.insert(_queue.end(), records.begin(), records.end());
+        _callback(_queue);
     }
 };
