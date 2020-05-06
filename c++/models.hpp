@@ -30,7 +30,7 @@ model_t load_model(const std::string& path="checkpoints/model.pt") {
 
 std::shared_ptr<torch::optim::Optimizer> create_optimizer(model_t model) {
 	std::vector<torch::Tensor> parameters;
-	int64_t num_parameters;
+	int64_t num_parameters = 0;
 	for (const auto& parameter : model.parameters()) {
 		parameters.push_back(parameter);
 		num_parameters += parameter.numel();
