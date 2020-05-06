@@ -24,6 +24,7 @@ public:
             std::cout
                 << "[" << epoch << "]"
                 << " LOSS=" << loss
+                << " STEPS=" << train_data.size()
                 << " ELAPSE=" << elapsed
                 << std::endl;
         }
