@@ -25,6 +25,11 @@ public:
     node_t(const std::string board, int side, nodeptr parent=nullptr)
     : board(board), side(side), parent(parent) {
     }
+    void clear() {
+        parent = nullptr;
+        for (auto child : children) child->clear();
+        children.clear();
+    }
     float Q()const {
         if (terminal) return 100000;
         else if (next_to_terminal) return -100000;
@@ -114,11 +119,15 @@ public:
     void complete() {
         terminal = true;
     }
+    ~state_t() {
+        root->clear();
+        root = nullptr;
+    }
 };
 
 class mcts_t {
 public:
-    static void play_multiple(model_t model, state_t& state, int n) {
+    static void play_multiple(model_t& model, state_t& state, int n) {
         auto nodes = state.root->select_multiple(n);
         std::vector<nodeptr> nonterminals;
         for (auto& node : nodes) {
@@ -130,7 +139,10 @@ public:
                 nonterminals.push_back(node);
             }
         }
-        if (nonterminals.empty()) return;
+        if (nonterminals.empty()) {
+            state.complete();
+            return;
+        }
         std::vector<record_t> records;
         for (auto& x : nonterminals) {
             records.push_back({x->board, x->side});
@@ -166,10 +178,10 @@ public:
         }
     }
     static std::tuple<action_t, action_probs_t> ponder(
-        model_t model, const std::string& board, int side, size_t playouts=200, float keep=0.75) {
+        model_t& model, const std::string& board, int side, size_t playouts=200, float keep=0.75) {
         state_t state(board, side);
         for (size_t k = 0; k < playouts; ++k) {
-            play_multiple(model, state, 64);
+            play_multiple(model, state, 128);
             if (state.terminal) break;
         }
         auto probs = state.statistics();

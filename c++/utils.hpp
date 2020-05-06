@@ -57,11 +57,13 @@ struct tensor_t<Cty0<Cty1<T>>> {
 template<template<class> class Cty0, typename T, size_t N>
 struct tensor_t<Cty0<std::array<T, N>>> {
     torch::Tensor operator()(const Cty0<std::array<T, N>>& values, const torch::Device& device) {
-        std::vector<torch::Tensor> result;
+        std::vector<T> data(values.size() * N);
+        auto it = data.begin();
         for (auto& v : values) {
-            result.push_back(tensor_t<std::array<T, N>>()(v, device));
+            std::copy(v.begin(), v.end(), it);
+            it += v.size();
         }
-        return torch::stack(result, 0);
+        return torch::tensor(data, device).reshape({(long)values.size(), N});
     }
 };
 

@@ -14,7 +14,7 @@
 namespace fs = std::experimental::filesystem::v1;
 typedef torch::jit::script::Module model_t;
 
-void save_model(model_t model, const std::string& path="checkpoints/model.pt") {
+void save_model(model_t& model, const std::string& path="checkpoints/model.pt") {
 	auto folder = fs::path(path).parent_path();
 	if (!fs::exists(folder))
 		fs::create_directory(folder);
@@ -25,7 +25,7 @@ model_t load_model(const std::string& path="checkpoints/model.pt") {
 	return torch::jit::load(path);
 }
 
-std::shared_ptr<torch::optim::Optimizer> create_optimizer(model_t model) {
+std::shared_ptr<torch::optim::Optimizer> create_optimizer(model_t& model) {
 	std::vector<torch::Tensor> parameters;
 	int64_t num_parameters = 0;
 	for (const auto& parameter : model.parameters()) {
@@ -37,7 +37,7 @@ std::shared_ptr<torch::optim::Optimizer> create_optimizer(model_t model) {
 	return std::static_pointer_cast<torch::optim::Optimizer>(optimizer);
 }
 
-torch::Device model_device(model_t model) {
+torch::Device model_device(model_t& model) {
 	const auto& first = *model.parameters().begin();
 	return first.device();
 }
@@ -55,7 +55,7 @@ std::tuple<torch::Tensor, torch::Tensor> _convert_outputs(torch::jit::IValue val
 }
 
 template<template<class> class Container>
-std::tuple<torch::Tensor, torch::Tensor> forward_some(model_t model, const Container<record_t>& records) {
+std::tuple<torch::Tensor, torch::Tensor> forward_some(model_t& model, const Container<record_t>& records) {
 	torch::NoGradGuard no_grad;
 	model.eval();
 	auto device = model_device(model);
@@ -122,7 +122,7 @@ std::vector<torch::jit::IValue> _convert_inputs(const Container<record_t>& recor
 
 template<template<class> class Container>
 float update_policy(
-	model_t model,
+	model_t& model,
 	std::shared_ptr<torch::optim::Optimizer> optimizer,
 	const Container<train_record_t>& records,
 	size_t epochs=10) {
