@@ -15,6 +15,10 @@ struct label_t {
     int winner;
 };
 
+struct output_t {
+    action_probs_t action_probs;
+    float win_prob;
+};
 struct action_t {
     int from;
     int to;

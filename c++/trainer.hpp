@@ -1,4 +1,5 @@
 #include <iostream>
+#include <thread>
 #include <torch/torch.h>
 #include "utils.hpp"
 #include "models.hpp"
@@ -15,6 +16,7 @@ public:
     }
     void run() {
         std::cout << "Start training..." << std::endl;
+        run_worker();
         xtimer_t timer;
         for (auto epoch = 0;; ++epoch) {
             auto train_data = play();
@@ -28,6 +30,9 @@ public:
                 << " ELAPSE=" << elapsed
                 << std::endl;
         }
+    }
+    void run_worker() {
+        static std::thread worker(&mcts_t::worker, std::ref(_model));
     }
     std::list<train_record_t> play(int nocapture=60) {
         std::list<train_record_t> train_data;

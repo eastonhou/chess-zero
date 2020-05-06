@@ -3,6 +3,7 @@
 #include <set>
 #include <math.h>
 #include <algorithm>
+#include <future>
 #include "definitions.hpp"
 #include "rules.hpp"
 #include "models.hpp"
@@ -126,6 +127,18 @@ public:
 };
 
 class mcts_t {
+private:
+    typedef std::vector<record_t> request_input_t;
+    typedef std::promise<std::vector<output_t>> request_output_t;
+    struct request_t {
+        request_input_t input;
+        request_output_t output;
+    };
+    typedef std::shared_ptr<request_t> request_ptr_t;
+    static async_queue_t<request_ptr_t>& _get_queue() {
+        static async_queue_t<request_ptr_t> _queue(1000);
+        return _queue;
+    }
 public:
     static void play_multiple(model_t& model, state_t& state, int n) {
         auto nodes = state.root->select_multiple(n);
@@ -147,19 +160,22 @@ public:
         for (auto& x : nonterminals) {
             records.push_back({x->board, x->side});
         }
-        auto result = forward_some(model, records);
-        auto tprobs = std::get<0>(result).exp().cpu();
-        auto tvalues = std::get<1>(result).cpu();
-        auto probs = tprobs.contiguous().data_ptr<float>();
-        auto values = tvalues.contiguous().data_ptr<float>();
+        auto outputs = _forward(model, records);
         for (size_t k = 0; k < nonterminals.size(); ++k) {
             auto& node = nonterminals[k];
             auto moves = move_t::next_steps(node->board, node->side == 1);
-            action_probs_t _probs;
-            std::copy(&probs[k*ACTION_SIZE], &probs[(k+1)*ACTION_SIZE], _probs.begin());
-            node->expand(moves, _probs);
-            node->backup(values[k]);
+            node->expand(moves, outputs[k].action_probs);
+            node->backup(outputs[k].win_prob);
         }
+    }
+    static std::vector<output_t> _forward(model_t& model, const std::vector<record_t>& records) {
+        request_ptr_t request = std::make_shared<request_t>();
+        request->input = records;
+        _get_queue().add(request);
+        return request->output.get_future().get();
+    }
+    static void worker(model_t& model) {
+        while (true) _batch_infer(model);
     }
     template<template<class> class Cty0, template<class> class Cty1>
     static action_t select(const Cty0<action_t>& moves, const Cty1<float>& probs, float keep) {
@@ -188,5 +204,34 @@ public:
         auto move = select(state.root->moves, probs, keep);
         auto action_probs = MoveTransform::map_probs(state.root->moves, probs);
         return std::make_tuple(move, action_probs);
+    }
+private:
+    static void _batch_infer(model_t& model) {
+        std::list<request_ptr_t> requests;
+        auto& queue = _get_queue();
+        do {
+            requests.push_back(queue.consume());
+        } while (!queue.empty());
+        std::vector<record_t> records;
+        for(auto& request : requests) {
+            records.insert(records.end(), request->input.begin(), request->input.end());
+        }
+        auto result = forward_some(model, records);
+        auto tprobs = std::get<0>(result).exp().cpu();
+        auto tvalues = std::get<1>(result).cpu();
+        auto probs = tprobs.contiguous().data_ptr<float>();
+        auto values = tvalues.contiguous().data_ptr<float>();
+        for (auto& request : requests) {
+            std::vector<output_t> outputs;
+            for (size_t k = 0; k < request->input.size(); ++k) {
+                output_t output;
+                std::copy(probs, probs+ACTION_SIZE, output.action_probs.begin());
+                output.win_prob = *values;
+                outputs.push_back(output);
+                probs += tprobs.stride(0);
+                values += 1;
+            }
+            request->output.set_value(outputs);
+        }
     }
 };

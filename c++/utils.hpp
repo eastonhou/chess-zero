@@ -3,6 +3,7 @@
 #include <random>
 #include <map>
 #include <ctime>
+#include <mutex>
 #include <torch/torch.h>
 
 template<class ForwardIterator>
@@ -85,5 +86,56 @@ public:
         for (auto kv : _timers()) {
             std::cout << kv.first << ": " << kv.second << std::endl;
         }
+    }
+};
+
+
+template<typename T>
+class async_queue_t {
+    std::condition_variable cond;
+    std::mutex mutex;
+    std::queue<T> cpq;
+    size_t maxsize;
+public:
+    async_queue_t(size_t mxsz) : maxsize(mxsz) { }
+
+    void add(T request)
+    {
+        std::unique_lock<std::mutex> lock(mutex);
+        cond.wait(lock, [this]()
+        { return !full(); });
+        cpq.push(request);
+        lock.unlock();
+        cond.notify_all();
+    }
+
+    T consume()
+    {
+        std::unique_lock<std::mutex> lock(mutex);
+        cond.wait(lock, [this]()
+        { return !empty(); });
+        auto request = cpq.front();
+        cpq.pop();
+        lock.unlock();
+        cond.notify_all();
+        return request;
+    }
+    bool full() const {
+        return cpq.size() >= maxsize;
+    }
+    bool empty() const {
+        return cpq.size() == 0;
+    }
+    int length() const {
+        return cpq.size();
+    }
+    void clear() {
+        std::unique_lock<std::mutex> lock(mutex);
+        while (!empty())
+        {
+            cpq.pop();
+        }
+        lock.unlock();
+        cond.notify_all();
     }
 };
