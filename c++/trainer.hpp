@@ -23,7 +23,7 @@ public:
         async_queue_t<train_record_t> queue([&](std::list<train_record_t>& queue){
             this->update(queue, timer);
         });
-        for (auto k = 0; k < 32; ++k) {
+        for (auto k = 0; k < 8; ++k) {
             auto worker = [k, &queue, this]{
                 std::cout << "Trainer " << k << " started." << std::endl;
                 while (true)
@@ -35,21 +35,22 @@ public:
     }
     void update(std::list<train_record_t>& queue, xtimer_t& timer) {
         const size_t batch_size = 128;
-        if (queue.size() < batch_size) return;
-        std::list<train_record_t> batch;
-        for (size_t k = 0; k < batch_size; ++k) {
-            batch.push_back(queue.front());
-            queue.pop_front();
+        while (queue.size() >= batch_size) {
+            std::list<train_record_t> batch;
+            for (size_t k = 0; k < batch_size; ++k) {
+                batch.push_back(queue.front());
+                queue.pop_front();
+            }
+            auto loss = update_policy(_model, _optimizer, batch);
+            save_model(_model);
+            auto elapsed = timer.check("epoch");
+            std::cout
+                << "[" << _epoch++ << "]"
+                << " LOSS=" << loss
+                << " STEPS=" << batch.size()
+                << " ELAPSE=" << elapsed
+                << std::endl;
         }
-        auto loss = update_policy(_model, _optimizer, batch);
-        save_model(_model);
-        auto elapsed = timer.check("epoch");
-        std::cout
-            << "[" << _epoch++ << "]"
-            << " LOSS=" << loss
-            << " STEPS=" << batch.size()
-            << " ELAPSE=" << elapsed
-            << std::endl;
     }
     std::list<train_record_t> play(int nocapture=60) {
         std::list<train_record_t> train_data;
