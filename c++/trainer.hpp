@@ -56,7 +56,10 @@ public:
         }
     }
     void run_mcts_worker() {
-        static std::thread worker(&mcts_t::worker, std::ref(_model));
+        static std::thread worker0(&mcts_t::worker, std::ref(_model));
+        static std::thread worker1(&mcts_t::worker, std::ref(_model));
+        static std::thread worker2(&mcts_t::worker, std::ref(_model));
+        static std::thread worker3(&mcts_t::worker, std::ref(_model));
     }
     std::list<train_record_t> play(int nocapture=60) {
         std::list<train_record_t> train_data;
