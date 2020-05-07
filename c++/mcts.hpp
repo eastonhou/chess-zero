@@ -211,7 +211,7 @@ private:
         auto& queue = _get_queue();
         do {
             requests.push_back(queue.consume());
-        } while (!queue.empty() && requests.size() < 8);
+        } while (!queue.empty());
         std::vector<record_t> records;
         for(auto& request : requests) {
             records.insert(records.end(), request->input.begin(), request->input.end());

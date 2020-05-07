@@ -17,6 +17,7 @@ public:
     Trainer(): _model(load_model()), _optimizer(create_optimizer(_model)) {
         auto device = torch::Device(c10::DeviceType::CUDA);
         _model.to(device, true);
+        torch::set_num_threads(1);
     }
     void run() {
         std::cout << "Start training..." << std::endl;
@@ -60,6 +61,10 @@ public:
         static std::thread worker1(&mcts_t::worker, std::ref(_model));
         static std::thread worker2(&mcts_t::worker, std::ref(_model));
         static std::thread worker3(&mcts_t::worker, std::ref(_model));
+        /*static std::thread worker5(&mcts_t::worker, std::ref(_model));
+        static std::thread worker6(&mcts_t::worker, std::ref(_model));
+        static std::thread worker7(&mcts_t::worker, std::ref(_model));
+        static std::thread worker8(&mcts_t::worker, std::ref(_model));*/
     }
     std::list<train_record_t> play(int nocapture=60) {
         std::list<train_record_t> train_data;
@@ -87,6 +92,11 @@ public:
         return train_data;
     }
     void print_move(size_t step, const std::string& board, const action_t& move) {
+        static int num_calls = -1;
+        static double elapsed = 0;
+        static xtimer_t timer;
+        elapsed += timer.check();
+        num_calls += 1;
         std::string side = move_t::side(board[move.from]) == 1 ? "RED" : "BLACK";
         char capture = board[move.to];
         auto accumulator = [](int a, char b) {
@@ -99,6 +109,7 @@ public:
             << " #PIECES=" << std::accumulate(board.begin(), board.end(), 0, accumulator);
         if (capture != ' ')
             std::cout << " CAPTURE=" << capture;
+        if (num_calls > 0) std::cout << " QPS=" << num_calls/elapsed;
         std::cout << "            " << std::flush;
     }
 };

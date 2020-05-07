@@ -72,17 +72,18 @@ std::tuple<torch::Tensor, torch::Tensor> forward_some(model_t& model, const Cont
 	auto device = model_device(model);
 	auto inputs = _convert_inputs(records, device);
 	auto results = _safe_forward(model, inputs);
-	auto indices = tensor(MoveTransform::rotate_indices(), device);
+	auto indices = tensor(MoveTransform::rotate_indices(), torch::DeviceType::CPU);
+	auto p = std::get<0>(results).cpu();
+	auto v = std::get<1>(results).cpu();
 	for (size_t k = 0; k < records.size(); ++k) {
 		auto side = records[k].side;
-		auto& p = std::get<0>(results);
-		auto& v = std::get<1>(results);
+
 		if (side == -1) {
 			p[k] = p[k].index(indices);
 			v[k] = -v[k];
 		}
 	}
-	return results;
+	return std::make_tuple(p, v);
 }
 
 template<template<class> class Container>
@@ -125,7 +126,7 @@ std::vector<torch::jit::IValue> _convert_inputs(const Container<record_t>& recor
 		}
 		++k;
 	}
-	auto inputs = tensor(results, device).reshape({-1, 10, 9});
+	auto inputs = tensor(results, torch::DeviceType::CPU).to(device).reshape({-1, 10, 9});
 	std::vector<torch::jit::IValue> jit_inputs;
 	jit_inputs.push_back(inputs);
 	return jit_inputs;
