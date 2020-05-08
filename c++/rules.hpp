@@ -316,7 +316,7 @@ public:
 		std::call_once(flag, []
 		{
 			score_map['R'] = 10;
-			score_map['H'] = 4;
+			score_map['N'] = 4;
 			score_map['E'] = 1;
 			score_map['B'] = 1;
 			score_map['K'] = 300;
