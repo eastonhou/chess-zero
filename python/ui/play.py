@@ -73,7 +73,7 @@ class Controller:
         return handler
 
     def move_piece(self, i0, i1):
-        print(f'TURN={self.state},BOARD={self.board},MOVE={i0,i1}')
+        print(f'TURN={self.state}, MOVE={i0,i1}')
         self.board = rules.next_board(self.board, (i0,i1))
         piece0 = self.find_piece(i0)
         piece1 = self.find_piece(i1)
