@@ -2,72 +2,68 @@ import os, torch
 import torch.nn as nn
 import numpy as np
 from package.rules import MoveTransform, rotate_board
+from torch_geometric import nn as gnn
 
 class Model(torch.jit.ScriptModule):
-    def __init__(self, num_residual_blocks=7, embedding_dim=80):
+    def __init__(self, num_residual_blocks=7, embedding_dim=120, node_features=768, layers=5):
         super(__class__, self).__init__()
-        self.input_layer = self._make_input_layer(embedding_dim)
-        self.residual_blocks = self._make_residual_blocks(num_residual_blocks)
-        self.policy_head = self._make_policy_head()
-        self.policy_projection = self._make_policy_projection()
-        self.value_head = self._make_value_head()
-        self.value_projection = self._make_value_projection()
-        self.embeddings = nn.Embedding(15, embedding_dim, padding_idx=0)
+        self.piece_embeddings = nn.Embedding(15, embedding_dim, padding_idx=0)
+        self.position_embeddings = nn.Embedding(90, embedding_dim)
+        self.mode_models = nn.Sequential(
+            gnn.FeaStConv(embedding_dim*2, node_features, 8),
+            *[gnn.FeaStConv(node_features, node_features, 8) for _ in range(layers)])
+        self.policy_projection = self._make_policy_projection(node_features)
+        self.value_projection = self._make_value_projection(node_features)
 
-    @torch.jit.script_method
-    def forward(self, inputs):
-        x = self.embeddings(inputs).permute(0, 3, 1, 2).contiguous()
-        x = self.input_layer(x)
-        for m in self.residual_blocks:
-            a = m(x)
-            x = nn.functional.relu(a + x)
-        p = self.policy_head(x).reshape(x.shape[0], -1)
-        p = self.policy_projection(p)
-        v = self.value_head(x).reshape(x.shape[0], -1)
-        v = self.value_projection(v).view(-1)
-        v = v.view(-1)
+    #@torch.jit.script_method
+    def forward(self, x, pos, graphs):
+        edge_index = self._make_edge_index(graphs)
+        piece_features = self.piece_embeddings(x)
+        position_features = self.position_embeddings(pos)
+        node_features = torch.cat([piece_features, position_features], dim=-1)
+        node_features = self.node_models(node_features, edge_index)
+        states = self._group_states(node_features, graphs)
+        p = self.policy_projection(states)
+        v = self.value_projection(states)
         return p, v
 
-    def _make_input_layer(self, embedding_dim):
-        return nn.Sequential(
-            nn.Conv2d(embedding_dim, 128, 3, 1, padding=1),
-            nn.BatchNorm2d(128),
-            nn.ReLU(inplace=True))
+    def _make_edge_index(self, graphs):
+        offset = 0
+        edges = set()
+        for graph in graphs:
+            for i,j in utils.enumerate_pairs(len(graph)):
+                edges.add((i+offset,j+offset))
+                edges.add((j+offset,i+offset))
+            offset += len(graph)
+        rows, cols = zip(*edges)
+        rows, cols = np.array(rows), np.array(cols)
+        return torch.tensor(rows), torch.tensor(cols)
 
-    def _make_residual_blocks(self, num_residual_blocks):
-        blocks = [self._residual_block() for _ in range(num_residual_blocks)]
-        return nn.ModuleList(blocks)
+    def _group_states(self, x, graphs):
+        offset = 0
+        states = []
+        for graph in graphs:
+            values = x[offset:offset+len(graph)]
+            states.append(values.sum(dim=0))
+            offset += len(graph)
+        return torch.stack(states, dim=0)
 
-    def _residual_block(self):
+    def _make_policy_projection(self, node_features):
         return nn.Sequential(
-            nn.Conv2d(128, 128, 3, 1, padding=1),
-            nn.BatchNorm2d(128),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(128, 128, 3, 1, padding=1),
-            nn.BatchNorm2d(128))
-
-    def _make_policy_head(self):
-        return nn.Sequential(
-            nn.Conv2d(128, 2, 1, 1),
-            nn.BatchNorm2d(2),
-            nn.ReLU(inplace=True))
-
-    def _make_policy_projection(self):
-        return nn.Sequential(
-            nn.Linear(180, MoveTransform.action_size()),
+            nn.Linear(node_features, MoveTransform.action_size()),
             nn.LogSoftmax(dim=-1))
 
-    def _make_value_head(self):
+    def _make_value_projection(self, node_features):
         return nn.Sequential(
-            nn.Conv2d(128, 1, 1, 1),
-            nn.BatchNorm2d(1),
-            nn.ReLU(inplace=True))
-
-    def _make_value_projection(self):
-        return nn.Sequential(
-            nn.Linear(90, 256),
+            nn.Linear(node_features, 256),
             nn.ReLU(inplace=True),
-            nn.Linear(256, 1),
+            nn.Linear(256, 128),
+            nn.ReLU(inplace=True),
+            nn.Linear(128, 64),
+            nn.ReLU(inplace=True),
+            nn.Linear(64, 32),
+            nn.ReLU(inplace=True),
+            nn.Linear(32, 1),
             nn.Tanh())
 
 def forward_one(model, board, side):
@@ -88,9 +84,6 @@ def save_checkpoint(model, path):
     if not os.path.exists(dirname):
         os.makedirs(dirname)
     model.save(path)
-    #inputs = torch.zeros(1, 10, 9, dtype=torch.int64)
-    #traced_module = torch.jit.trace(model, inputs)
-    #traced_module.save(path)
 
 def try_load_checkpoint(path):
     if os.path.isfile(path):
@@ -105,11 +98,20 @@ def convert_inputs(records, device):
         if side == -1:
             board = rotate_board(board)
         pieces = ' rnbakcpRNBAKCP'
-        board = [pieces.index(x) for x in board]
-        input = np.array(board, dtype=np.int64).reshape((10,9))
-        return input
-    records = [_convert_record(*x) for x in records]
-    inputs = tensor(np.array(records), device)
+        x, pos = [], []
+        for i,_x in enumerate(pieces):
+            _x = pieces.index(_x)
+            if _x != 0:
+                x.append(_x)
+                pos.append(i)
+        return x, pos
+    x, pos, graphs = [], [], []
+    for board,side in records:
+        _x, _pos = _convert_record(board, side)
+        x += _x
+        pos += _pos
+        graphs.append(len(_x))
+    inputs = torch.tensor(x, device), torch.tensor(pos, device), graphs
     return inputs
 
 def convert_targets(targets, sides):

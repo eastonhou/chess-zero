@@ -25,3 +25,10 @@ class Timer:
                 print(f'{k}: {v:>.2F}')
             else:
                 print(f'{k}: {v:>.2F}/{c}={v/c}')
+
+def enumerate_pairs(group):
+    if isinstance(group, int):
+        group = list(range(group))
+    for j in range(len(group)):
+        for i in range(j):
+            yield group[i], group[j]

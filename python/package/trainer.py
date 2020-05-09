@@ -4,7 +4,8 @@ from package import models, rules, mcts
 class Trainer:
     def __init__(self):
         self.checkpoint_path = 'checkpoints/model.pt'
-        self.model = models.try_load_checkpoint(self.checkpoint_path).to(0)
+        #self.model = models.try_load_checkpoint(self.checkpoint_path).to(0)
+        self.model = models.Model()
         self.optimizer = models.create_optimizer(self.model)
 
     def run(self):
