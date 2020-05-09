@@ -306,31 +306,28 @@ class rule_t
 public:
 	static std::vector<char> chess_types()
 	{
-		return { 'R', 'r', 'H', 'h', 'E', 'e', 'B', 'b', 'K', 'k', 'C', 'c', 'P', 'p' };
+		return { 'R', 'r', 'N', 'n', 'B', 'b', 'A', 'a', 'K', 'k', 'C', 'c', 'P', 'p' };
 	}
 	static int gameover_threshold() { return GAMEOVER_THRESHOLD; }
 	static int basic_score(const std::string& board)
 	{
-		static std::once_flag flag;
-		static std::array<int, 128> score_map = { 0 };
-		std::call_once(flag, []
+		std::array<int, 128> score_map = {0};
+		score_map['R'] = 10;
+		score_map['N'] = 4;
+		score_map['B'] = 2;
+		score_map['A'] = 2;
+		score_map['K'] = 300;
+		score_map['C'] = 4;
+		score_map['P'] = 1;
+		score_map[' '] = 0;
+		for (int type : rule_t::chess_types())
 		{
-			score_map['R'] = 10;
-			score_map['N'] = 4;
-			score_map['E'] = 1;
-			score_map['B'] = 1;
-			score_map['K'] = 300;
-			score_map['C'] = 4;
-			score_map['P'] = 1;
-			for (int type : rule_t::chess_types())
-			{
-				if (islower(type))
-					score_map[type] = -score_map[toupper(type)];
-			}
-			for (size_t k = 0; k < score_map.size(); ++k)
-				score_map[k] *= BASE;
-		});
-		auto r = std::accumulate(board.begin(), board.end(), 0, [](int a, char b) { return a + score_map[b]; });
+			if (islower(type))
+				score_map[type] = -score_map[toupper(type)];
+		}
+		for (size_t k = 0; k < score_map.size(); ++k)
+			score_map[k] *= BASE;
+		auto r = std::accumulate(board.begin(), board.end(), 0, [&](int a, char b) { return a + score_map[b]; });
 		return r;
 	}
 	static bool gameover_position(const std::string& board) {
