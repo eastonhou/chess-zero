@@ -6,7 +6,6 @@ from package.rules import MoveTransform, rotate_board
 class Model(torch.jit.ScriptModule):
     def __init__(self, num_residual_blocks=7, embedding_dim=80):
         super(__class__, self).__init__()
-        self.embedding_dim = embedding_dim
         self.input_layer = self._make_input_layer(embedding_dim)
         self.residual_blocks = self._make_residual_blocks(num_residual_blocks)
         self.policy_head = self._make_policy_head()
@@ -98,7 +97,7 @@ def try_load_checkpoint(path):
         return torch.jit.load(path)
     else:
         model = Model()
-        __class__.save_checkpoint(model, path)
+        save_checkpoint(model, path)
         return model
 
 def convert_inputs(records, device):

@@ -107,7 +107,6 @@ def play(model, state):
     node.backup(value)
 
 def play_multiple(model, state, n):
-    timer = utils.Timer()
     nodes = state.root.select_multiple(n)
     nonterminals = []
     for node in nodes:
@@ -118,18 +117,14 @@ def play_multiple(model, state, n):
             nonterminals.append(node)
     if not nonterminals:
         return
-    timer.check('-select')
     records = [(x.board, x.side) for x in nonterminals]
     logits, values = models.forward_some(model, records)
     probs = logits.exp().detach().cpu().numpy()
     values = values.detach().cpu().numpy()
-    timer.check('-model')
     moves = [rules.next_steps(x.board, x.side==1) for x in nonterminals]
-    timer.check('-moves')
     for _node, _moves, _probs, _value in zip(nonterminals, moves, probs, values):
         _node.expand(_moves, _probs)
         _node.backup(_value)
-    timer.check('-expand')
 
 def select(moves, probs, keep):
     if keep >= 1:
@@ -141,13 +136,10 @@ def select(moves, probs, keep):
 
 def ponder(model, board, side, playouts=200, keep=0.75):
     state = State(board, side)
-    timer = utils.Timer()
     for _ in range(playouts):
         play_multiple(model, state, 64)
-        timer.check('ponder.step', count=1)
         if state.terminal:
             break
-    timer.print()
     moves, probs = state.statistics()
     move = select(moves, probs, keep)
     action_probs = rules.MoveTransform.map_probs(moves, probs)
