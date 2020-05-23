@@ -14,7 +14,7 @@ class Trainer:
             models.update_policy(self.model, self.optimizer, train_data)
             models.save_checkpoint(self.model, self.checkpoint_path)
 
-    def play(self, nocapture=60):
+    def play(self, nocapture=30):
         board = rules.initial_board()
         side = 1
         train_data = []
