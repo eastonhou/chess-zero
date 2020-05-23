@@ -133,11 +133,11 @@ def save_checkpoint(model, path):
     dirname = os.path.dirname(path)
     if not os.path.exists(dirname):
         os.makedirs(dirname)
-    model.save(path)
+    torch.save(model, path)
 
 def try_load_checkpoint(path):
     if os.path.isfile(path):
-        return torch.jit.load(path)
+        return torch.load(path)
     else:
         model = Model()
         save_checkpoint(model, path)
