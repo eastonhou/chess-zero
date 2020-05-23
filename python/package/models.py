@@ -180,7 +180,7 @@ def update_policy(model, optimizer, train_data, epochs=10):
     inputs = convert_inputs(records, device)
     tp, tv = convert_targets(targets, [x[1] for x in records])
     for _ in range(epochs):
-        p, v = model(inputs)
+        p, v = model(*inputs)
         tp, tv = tensor(tp, device), tensor(tv, device).float()
         ploss = (-p*tp).sum()
         vloss = nn.functional.mse_loss(v, tv)
