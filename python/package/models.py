@@ -194,6 +194,8 @@ def create_optimizer(model):
     return torch.optim.AdamW(model.parameters())
 
 def tensor(values, device):
+    if torch.is_tensor(values):
+        return values.to(device)
     if not isinstance(values, np.ndarray):
         values = np.array(values)
     return torch.tensor(values, device=device)
