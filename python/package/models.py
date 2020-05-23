@@ -58,7 +58,7 @@ class Model(nn.Module):
         states = self._group_states(x, graphs)
         p = self.policy_projection(states)
         v = self.value_projection(states)
-        return p, v
+        return p, v.view(-1)
 
     def tensor(self, value):
         device = next(self.parameters()).device
@@ -188,7 +188,7 @@ def update_policy(model, optimizer, train_data, epochs=10):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-    print(f'LOSS: {loss.div(inputs.shape[0]).item()}')
+    print(f'LOSS: {loss.div(len(inputs[-1])).item()}')
 
 def create_optimizer(model):
     return torch.optim.AdamW(model.parameters())
